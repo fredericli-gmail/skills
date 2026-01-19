@@ -126,10 +126,45 @@ if (user != null) {
 | 空 catch 區塊 | catch 後無處理 | `catch\s*\([^)]+\)\s*\{\s*\}` |
 | 僅印出堆疊 | 沒有適當處理 | `e\.printStackTrace\(\)` |
 | 吞掉異常 | catch 後無動作 | `catch\s*\([^)]+\)\s*\{[^}]*\}` 內無 throw/log |
+| log.error 遺失堆疊 | 僅記錄訊息未傳入 Exception | `log\.error\s*\(\s*e\.getMessage\(\)` |
+| log.error 格式錯誤 | 未將 Exception 作為最後參數 | `log\.error\s*\([^,)]+\)\s*;` |
 
 **修正方式**：
 - 記錄 Log 並拋出適當的業務異常
 - 或進行適當的錯誤恢復處理
+- **log.error 必須包含完整堆疊追蹤**
+
+**正確範例**：
+```java
+// ✅ 正確：Exception 物件作為最後參數，自動印出完整堆疊追蹤
+catch (Exception e) {
+    log.error("處理失敗，userId: {}", userId, e);
+    throw new BusinessException("操作失敗", e);
+}
+```
+
+**錯誤範例**：
+```java
+// ❌ 錯誤 1：僅記錄訊息，遺失堆疊追蹤
+catch (Exception e) {
+    log.error("發生錯誤: " + e.getMessage());
+}
+
+// ❌ 錯誤 2：使用 {} 格式化訊息但未傳入 Exception 物件
+catch (Exception e) {
+    log.error("錯誤: {}", e.getMessage());
+}
+
+// ❌ 錯誤 3：空的 catch 區塊
+catch (Exception e) {
+    // do nothing
+}
+
+// ❌ 錯誤 4：僅使用 printStackTrace
+catch (Exception e) {
+    e.printStackTrace();
+}
+```
 
 ---
 

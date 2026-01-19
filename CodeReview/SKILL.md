@@ -64,13 +64,15 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 | **SQL Injection** | 字串拼接 SQL | 檢查 `"SELECT`, `"INSERT`, `"UPDATE`, `"DELETE` 後接 `+` 號 |
 | **硬編碼密碼** | password = "xxx", secret = "xxx" | 正則：`(password\|secret\|key\|token)\s*=\s*"[^"]+"`（忽略大小寫） |
 | **不安全亂數** | `new Random()` 用於安全場景 | 檢查 `java.util.Random` 用於 token/password 產生 |
+| **Exception 缺少堆疊追蹤** | `log.error()` 未傳入 Exception 物件 | 正則：`log\.error\s*\([^)]*\)\s*;` 且無第二參數為 Exception |
 
 #### 🟡 警告（建議修正）
 
 | 類別 | 檢查項目 | 檢測模式 |
 |------|---------|---------|
 | **Null Check** | 未檢查 Null 即呼叫方法 | 檢查方法參數與回傳值使用前是否有 null 檢查 |
-| **異常處理** | 空的 catch 區塊、僅 `e.printStackTrace()` | 正則：`catch\s*\([^)]+\)\s*\{\s*\}` 或 `e\.printStackTrace\(\)` |
+| **異常處理不當** | 空的 catch 區塊、僅 `e.printStackTrace()`、吞掉例外 | 正則：`catch\s*\([^)]+\)\s*\{\s*\}` 或 `e\.printStackTrace\(\)` |
+| **log.error 格式錯誤** | `log.error(e.getMessage())` 遺失堆疊追蹤 | 正則：`log\.error\s*\(\s*e\.getMessage\(\)` |
 | **輸入驗證** | Controller 方法缺少 `@Valid` 或手動驗證 | 檢查 `@PostMapping`, `@PutMapping` 方法參數 |
 | **註解缺失** | 程式碼行缺少繁體中文註解 | 檢查非空白、非括號行是否有對應註解 |
 
