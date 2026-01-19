@@ -1,6 +1,8 @@
 # 程式碼壞味道與重構手法對照表
 
 > 本文件提供常見的程式碼壞味道（Code Smells）識別方式與對應的重構手法
+>
+> **支援語言**：Java、JavaScript
 
 ---
 
@@ -12,6 +14,7 @@
 4. [資料相關壞味道](#4-資料相關壞味道)
 5. [條件邏輯壞味道](#5-條件邏輯壞味道)
 6. [重構手法速查表](#6-重構手法速查表)
+7. [JavaScript 專用壞味道](#7-javascript-專用壞味道)
 
 ---
 
@@ -670,3 +673,447 @@ private boolean hasRecentLogin(User user) {
 | 低 | 局部變更，不影響其他程式碼 | 可較快速執行 |
 | 中 | 可能影響其他類別或介面 | 需確認測試覆蓋 |
 | 高 | 影響範圍大，可能有副作用 | 需謹慎規劃，分步執行 |
+
+---
+
+## 7. JavaScript 專用壞味道
+
+### 7.1 Global Variable Pollution（全域變數污染）
+
+**識別標準**：
+- 在函式外使用 `var` 宣告變數
+- 未使用 `var` 宣告變數（隱式全域）
+- 多個 JS 檔案共用相同的全域變數名稱
+
+**檢測指令**：
+```bash
+# 搜尋可能的全域變數（簡易檢測）
+grep -n "^var \|^let \|^const " --include="*.js" [檔案路徑]
+```
+
+**重構手法**：
+
+| 手法 | 說明 |
+|------|------|
+| Wrap in IIFE | 將程式碼包在立即執行函式中 |
+| Extract Module | 使用模組模式封裝 |
+| Namespace Object | 將相關變數放入命名空間物件 |
+
+**範例**：
+
+```javascript
+// ❌ 全域變數污染
+var userName = '';
+var userEmail = '';
+var isLoggedIn = false;
+
+function login(name, email) {
+    userName = name;
+    userEmail = email;
+    isLoggedIn = true;
+}
+
+// ✅ 重構後：使用模組模式封裝
+var UserModule = (function() {
+    // 私有變數
+    var userName = '';
+    var userEmail = '';
+    var isLoggedIn = false;
+
+    // 公開方法
+    return {
+        login: function(name, email) {
+            userName = name;
+            userEmail = email;
+            isLoggedIn = true;
+        },
+        isLoggedIn: function() {
+            return isLoggedIn;
+        },
+        getUserName: function() {
+            return userName;
+        }
+    };
+})();
+```
+
+---
+
+### 7.2 Callback Hell（回呼地獄）
+
+**識別標準**：
+- 回呼函式嵌套超過 3 層
+- 程式碼向右縮排過深
+- 難以追蹤錯誤處理
+
+**檢測指令**：
+```bash
+# 搜尋多層嵌套的 function
+grep -n "function.*function.*function" --include="*.js" [檔案路徑]
+
+# 搜尋 .then 嵌套
+grep -n "\.then.*\.then" --include="*.js" [檔案路徑]
+```
+
+**重構手法**：
+
+| 手法 | 說明 |
+|------|------|
+| Extract Named Functions | 將回呼提取為具名函式 |
+| Use Promise Chain | 使用 Promise 鏈扁平化 |
+| Early Return | 提前返回減少嵌套 |
+
+**範例**：
+
+```javascript
+// ❌ 回呼地獄
+function processOrder(orderId) {
+    getOrder(orderId, function(order) {
+        getCustomer(order.customerId, function(customer) {
+            getInventory(order.items, function(inventory) {
+                processPayment(order, customer, function(result) {
+                    sendConfirmation(customer.email, function() {
+                        // 完成...
+                    });
+                });
+            });
+        });
+    });
+}
+
+// ✅ 重構後：提取具名函式 + Promise 鏈
+function processOrder(orderId) {
+    // 宣告資料暫存
+    var orderData = null;
+    var customerData = null;
+
+    // 取得訂單
+    getOrder(orderId)
+        .then(function(order) {
+            // 儲存訂單資料
+            orderData = order;
+            // 取得客戶
+            return getCustomer(order.customerId);
+        })
+        .then(function(customer) {
+            // 儲存客戶資料
+            customerData = customer;
+            // 檢查庫存
+            return getInventory(orderData.items);
+        })
+        .then(function(inventory) {
+            // 處理付款
+            return processPayment(orderData, customerData);
+        })
+        .then(function(result) {
+            // 發送確認信
+            return sendConfirmation(customerData.email);
+        })
+        .then(function() {
+            // 完成處理
+        })
+        .catch(function(error) {
+            // 統一錯誤處理
+            console.error('訂單處理失敗:', error);
+        });
+}
+```
+
+---
+
+### 7.3 Magic Numbers/Strings（魔術數字/字串）
+
+**識別標準**：
+- 程式碼中直接使用未命名的數字
+- 程式碼中直接使用字串字面值
+- 相同的值在多處重複出現
+
+**檢測指令**：
+```bash
+# 搜尋可能的魔術數字
+grep -n "[^a-zA-Z0-9_][0-9]\{2,\}[^a-zA-Z0-9_]" --include="*.js" [檔案路徑]
+
+# 搜尋重複的字串
+grep -on "'[^']\{5,\}'" --include="*.js" [檔案路徑] | sort | uniq -c | sort -rn
+```
+
+**重構手法**：
+
+| 手法 | 說明 |
+|------|------|
+| Extract Constant | 提取為具名常數 |
+| Configuration Object | 集中管理設定值 |
+
+**範例**：
+
+```javascript
+// ❌ 魔術數字/字串散落各處
+function validatePassword(password) {
+    if (password.length < 8) {
+        return '密碼太短';
+    }
+    if (password.length > 20) {
+        return '密碼太長';
+    }
+    return null;
+}
+
+function setAutoRefresh() {
+    setInterval(refreshData, 30000);
+}
+
+function showToast(message) {
+    // 顯示 3 秒
+    setTimeout(hideToast, 3000);
+}
+
+// ✅ 重構後：提取為常數
+// ========== 常數定義 ==========
+// 密碼最小長度
+var PASSWORD_MIN_LENGTH = 8;
+// 密碼最大長度
+var PASSWORD_MAX_LENGTH = 20;
+// 自動更新間隔（毫秒）
+var AUTO_REFRESH_INTERVAL = 30000;
+// Toast 顯示時間（毫秒）
+var TOAST_DISPLAY_DURATION = 3000;
+
+function validatePassword(password) {
+    // 檢查最小長度
+    if (password.length < PASSWORD_MIN_LENGTH) {
+        return '密碼太短';
+    }
+    // 檢查最大長度
+    if (password.length > PASSWORD_MAX_LENGTH) {
+        return '密碼太長';
+    }
+    // 驗證通過
+    return null;
+}
+
+function setAutoRefresh() {
+    // 設定自動更新定時器
+    setInterval(refreshData, AUTO_REFRESH_INTERVAL);
+}
+
+function showToast(message) {
+    // 設定 Toast 自動隱藏
+    setTimeout(hideToast, TOAST_DISPLAY_DURATION);
+}
+```
+
+---
+
+### 7.4 Long Function（過長函式）
+
+**識別標準**：
+- 函式超過 50 行
+- 函式內有多個邏輯區塊
+- 函式做了太多事情
+- 需要捲動才能看完
+
+**檢測指令**：
+```bash
+# 統計 JS 檔案行數
+wc -l src/main/resources/static/js/*.js | sort -rn
+
+# 列出函式定義
+grep -n "function " --include="*.js" [檔案路徑]
+```
+
+**重構手法**：
+
+| 手法 | 說明 |
+|------|------|
+| Extract Function | 將程式碼區塊提取為獨立函式 |
+| Decompose Conditional | 將複雜條件式提取為函式 |
+
+**範例**：
+
+```javascript
+// ❌ 過長函式（60+ 行）
+function initializePage() {
+    // 載入使用者資訊（15行）
+    // ...
+
+    // 設定事件監聽（20行）
+    // ...
+
+    // 初始化表格（15行）
+    // ...
+
+    // 載入資料（15行）
+    // ...
+}
+
+// ✅ 重構後：拆分為多個函式
+function initializePage() {
+    // 載入使用者資訊
+    loadUserInfo();
+    // 設定事件監聽
+    setupEventListeners();
+    // 初始化表格
+    initializeTable();
+    // 載入初始資料
+    loadInitialData();
+}
+
+/**
+ * 載入使用者資訊
+ */
+function loadUserInfo() {
+    // 使用者載入邏輯...
+}
+
+/**
+ * 設定事件監聽器
+ */
+function setupEventListeners() {
+    // 事件綁定邏輯...
+}
+
+/**
+ * 初始化資料表格
+ */
+function initializeTable() {
+    // 表格初始化邏輯...
+}
+
+/**
+ * 載入初始資料
+ */
+function loadInitialData() {
+    // 資料載入邏輯...
+}
+```
+
+---
+
+### 7.5 Tight DOM Coupling（DOM 耦合過緊）
+
+**識別標準**：
+- 硬編碼的 DOM 選擇器散落各處
+- 相同的 `getElementById` 多次呼叫
+- 業務邏輯與 DOM 操作混在一起
+
+**重構手法**：
+
+| 手法 | 說明 |
+|------|------|
+| Cache DOM References | 快取 DOM 元素參照 |
+| Extract DOM Operations | 將 DOM 操作提取為獨立函式 |
+| Separate Concerns | 分離業務邏輯與 UI 操作 |
+
+**範例**：
+
+```javascript
+// ❌ DOM 耦合過緊
+function updateUser(userId) {
+    var name = document.getElementById('userName').value;
+    var email = document.getElementById('userEmail').value;
+
+    // 驗證
+    if (!name) {
+        document.getElementById('nameError').style.display = 'block';
+        return;
+    }
+
+    // 發送請求
+    Api.put('/users/' + userId, {name: name, email: email})
+        .then(function(response) {
+            document.getElementById('successMsg').style.display = 'block';
+            document.getElementById('userName').value = response.data.name;
+        });
+}
+
+// ✅ 重構後：快取 DOM 參照 + 分離關注點
+// ========== DOM 元素快取 ==========
+var elements = {
+    userName: document.getElementById('userName'),
+    userEmail: document.getElementById('userEmail'),
+    nameError: document.getElementById('nameError'),
+    successMsg: document.getElementById('successMsg')
+};
+
+/**
+ * 取得表單資料
+ * @returns {Object} 表單資料物件
+ */
+function getFormData() {
+    return {
+        name: elements.userName.value,
+        email: elements.userEmail.value
+    };
+}
+
+/**
+ * 顯示錯誤訊息
+ * @param {string} field - 欄位名稱
+ */
+function showError(field) {
+    // 取得對應的錯誤元素
+    var errorEl = elements[field + 'Error'];
+    // 顯示錯誤
+    if (errorEl) {
+        errorEl.style.display = 'block';
+    }
+}
+
+/**
+ * 顯示成功訊息
+ */
+function showSuccess() {
+    // 顯示成功訊息
+    elements.successMsg.style.display = 'block';
+}
+
+/**
+ * 更新使用者
+ * @param {number} userId - 使用者 ID
+ */
+function updateUser(userId) {
+    // 取得表單資料
+    var formData = getFormData();
+
+    // 驗證姓名
+    if (!formData.name) {
+        showError('name');
+        return;
+    }
+
+    // 發送更新請求
+    Api.put('/users/' + userId, formData)
+        .then(function(response) {
+            // 顯示成功訊息
+            showSuccess();
+            // 更新表單值
+            elements.userName.value = response.data.name;
+        });
+}
+```
+
+---
+
+### 7.6 JavaScript 重構手法速查表
+
+| 壞味道 | 首選手法 | 備選手法 |
+|-------|---------|---------|
+| 全域變數污染 | Wrap in IIFE | Extract Module |
+| 回呼地獄 | Extract Named Functions | Use Promise Chain |
+| 魔術數字/字串 | Extract Constant | Configuration Object |
+| 函式過長 | Extract Function | Decompose Conditional |
+| DOM 耦合過緊 | Cache DOM References | Separate Concerns |
+| 重複程式碼 | Extract Function | Extract Module |
+| 過深巢狀 | Guard Clauses | Early Return |
+
+### 7.7 JavaScript 重構風險等級
+
+| 重構手法 | 適用情境 | 風險等級 |
+|---------|---------|---------|
+| Extract Function | 函式過長 | 低 |
+| Extract Constant | 魔術數字 | 低 |
+| Wrap in IIFE | 全域變數 | 低 |
+| Extract Module | 相關函式群組 | 中 |
+| Cache DOM References | DOM 操作 | 低 |
+| Promise Chain Refactor | 回呼地獄 | 中 |
+| Separate Concerns | 業務邏輯混雜 | 中 |

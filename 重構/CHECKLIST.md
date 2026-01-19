@@ -1,6 +1,8 @@
 # 重構檢查清單
 
 > 本文件提供重構前後的完整檢查清單，確保重構安全且有效
+>
+> **支援語言**：Java、JavaScript
 
 ---
 
@@ -11,6 +13,7 @@
 3. [重構後檢查](#3-重構後檢查)
 4. [常見錯誤檢查](#4-常見錯誤檢查)
 5. [快速檢查指令](#5-快速檢查指令)
+6. [JavaScript 專用檢查](#6-javascript-專用檢查)
 
 ---
 
@@ -305,4 +308,144 @@ git reset --hard [commit-hash]
 □ 回滾後編譯通過
 □ 回滾後測試通過
 □ 已記錄回滾原因
+```
+
+---
+
+## 6. JavaScript 專用檢查
+
+### 6.1 重構前檢查
+
+| 項目 | 檢查內容 | 指令 |
+|------|---------|------|
+| [ ] 語法正確 | JS 檔案無語法錯誤 | `node --check [檔案]` |
+| [ ] 無執行錯誤 | 瀏覽器 Console 無報錯 | 開啟開發者工具 |
+| [ ] Git 狀態乾淨 | 無未提交的變更 | `git status` |
+
+### 6.2 重構中檢查
+
+#### 每個重構步驟
+
+```
+執行 JS 重構
+    ↓
+[ ] 語法檢查通過？ ──否──→ 修正語法錯誤
+    ↓ 是
+[ ] 瀏覽器測試？ ──否──→ 檢查是否改變行為
+    ↓ 是
+[ ] 立即 Commit
+    ↓
+下一個重構步驟
+```
+
+#### JavaScript 程式碼風格檢查
+
+| 項目 | 檢查內容 | 嚴重度 |
+|------|---------|-------|
+| [ ] 無箭頭函式 | 沒有使用 `=>` 語法 | 🔴 必須 |
+| [ ] 無 let/const | 使用 `var` 宣告變數 | 🟡 建議 |
+| [ ] 無模板字串 | 沒有使用 `` ` `` 反引號 | 🟡 建議 |
+| [ ] 有繁中註解 | 每行邏輯程式碼有註解 | 🟡 建議 |
+| [ ] 無全域污染 | 使用 IIFE 或模組模式封裝 | 🟡 建議 |
+| [ ] 無過多 console | 移除不必要的 console.log | 🟢 可選 |
+
+### 6.3 重構後檢查
+
+| 項目 | 檢查內容 | 指令 |
+|------|---------|------|
+| [ ] 所有 JS 語法正確 | 所有檔案通過語法檢查 | 見下方批次指令 |
+| [ ] 瀏覽器功能正常 | 頁面功能正常運作 | 人工測試 |
+| [ ] 專案編譯成功 | Maven 編譯無錯誤 | `./mvnw compile` |
+| [ ] 行為不變 | 業務邏輯未被改變 | 人工確認 |
+
+### 6.4 JavaScript 快速檢查指令
+
+#### 重構前
+
+```bash
+# 確認 Git 狀態
+git status
+
+# 檢查目標 JS 檔案語法
+node --check [目標檔案]
+
+# 統計檔案行數
+wc -l src/main/resources/static/js/*.js | sort -rn
+```
+
+#### 重構中
+
+```bash
+# 語法檢查（單一檔案）
+node --check [檔案路徑]
+
+# 提交重構
+git add [檔案]
+git commit -m "refactor: [說明]"
+```
+
+#### 重構後
+
+```bash
+# 批次語法檢查（所有 JS 檔案）
+for file in src/main/resources/static/js/*.js; do
+  if node --check "$file" 2>&1 | grep -q "SyntaxError"; then
+    echo "❌ $file 語法錯誤"
+  else
+    echo "✅ $file"
+  fi
+done
+
+# 檢查違規語法
+echo "=== 檢查箭頭函式 ==="
+grep -rn "=>" --include="*.js" src/main/resources/static/js/ | grep -v "//\|/\*\|.min.js" | head -10
+
+echo "=== 檢查 let/const ==="
+grep -rn "\blet\b\|\bconst\b" --include="*.js" src/main/resources/static/js/ | grep -v "//\|/\*\|.min.js" | head -10
+
+echo "=== 檢查模板字串 ==="
+grep -rn '`' --include="*.js" src/main/resources/static/js/ | grep -v "//\|/\*\|.min.js" | head -10
+
+# 檢查 commit 歷史
+git log --oneline -10
+
+# 檢查未提交變更
+git status
+```
+
+### 6.5 JavaScript 重構檢查清單範本
+
+```
+【JavaScript 重構檢查】
+
+📋 重構資訊
+- 重構範圍：[JS 檔案清單]
+- 重構目標：[目標說明]
+
+□ 重構前準備
+  □ Git 狀態乾淨
+  □ 目標檔案語法正確（node --check）
+  □ 使用者已確認（OKOKYES）
+
+□ 重構執行
+  □ Step 1: [說明] - 已 commit
+  □ Step 2: [說明] - 已 commit
+  [...]
+
+□ 重構後驗證
+  □ 所有 JS 檔案語法正確
+  □ 瀏覽器測試功能正常
+  □ 無違規語法（箭頭函式/let/const/模板字串）
+  □ 所有註解已更新
+
+□ 品質指標
+  | 指標 | 重構前 | 重構後 |
+  |------|-------|-------|
+  | 最長函式行數 | ___ | ___ |
+  | 重複程式碼處 | ___ | ___ |
+  | 全域變數數量 | ___ | ___ |
+
+□ 最終確認
+  □ 所有變更已提交
+  □ Commit 歷史清晰
 ```
