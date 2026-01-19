@@ -119,15 +119,25 @@
 
 #### 2.2 建立 Worktree
 
-執行指令：
+**先取得當前分支名稱（作為基底分支）**：
+
+```bash
+# 取得當前分支名稱
+BASE_BRANCH=$(git branch --show-current)
+echo "基底分支：$BASE_BRANCH"
+```
+
+**執行建立指令**：
 
 ```bash
 # 確保在主目錄
 cd /Users/fredericli/Git/Danova/Danova-woms
 
-# 建立 worktree（從 develop 分支）
-git worktree add ./sub-danova-worm/<分支名稱> -b <分支名稱> develop
+# 建立 worktree（從當前分支建立）
+git worktree add ./sub-danova-worm/<分支名稱> -b <分支名稱> $BASE_BRANCH
 ```
+
+> **重要**：基底分支必須記錄到 TASK.md 中，供開發完成後合併使用。
 
 **目錄結構**：
 ```
@@ -151,7 +161,7 @@ git worktree add ./sub-danova-worm/<分支名稱> -b <分支名稱> develop
 ├─────────────────────────────────────────────────────────────────┤
 │ Worktree 路徑：./sub-danova-worm/<分支名稱>                      │
 │ 分支名稱：<分支名稱>                                             │
-│ 基底分支：develop                                                │
+│ 基底分支：<基底分支>                                              │
 │ 任務檔案：TASK.md                                                │
 ├─────────────────────────────────────────────────────────────────┤
 │ 請執行以下指令進入開發環境：                                      │
@@ -166,10 +176,20 @@ git worktree add ./sub-danova-worm/<分支名稱> -b <分支名稱> develop
 
 ## Worktree 內的 Claude 行為
 
-當用戶在 worktree 中啟動 Claude 並輸入「開始」時：
+### 觸發條件
 
-1. **讀取 TASK.md**
-2. **依計畫執行開發**
+當用戶在 worktree 中啟動 **新的 Claude session** 後，可能的觸發指令：
+- 「開始」
+- 「執行」
+- 「請讀取 TASK.md」
+- 「請讀取 TASK.md 並開始」
+
+> **重要**：TASK.md 開頭有明確指示，告訴新的 Claude 該如何處理此檔案。
+
+### 執行流程
+
+1. **讀取 TASK.md**（完整讀取，理解任務內容）
+2. **確認理解後開始開發**
 3. **每階段完成後**：
    - 立即 commit（同階段檔案一起）
    - push 到遠端
@@ -180,6 +200,10 @@ git worktree add ./sub-danova-worm/<分支名稱> -b <分支名稱> develop
    - 輸出「開發完成通知」
    - 等待用戶輸入「OKOKYES」
    - 執行 `/CodeReview` skill
+
+5. **CodeReview 通過 + 測試通過後（強制執行）**：
+   - 輸出「隔離開發流程完成通知」
+   - 提供合併與清理指令
 
 ---
 
@@ -218,16 +242,18 @@ git worktree add ./sub-danova-worm/<分支名稱> -b <分支名稱> develop
 ├─────────────────────────────────────────────────────────────────┤
 │ Selenium 自動化測試 → 功能驗證                                   │
 │                                                                 │
-│ ✅ 通過 → 功能開發完成                                           │
+│ ✅ 通過 → 輸出「隔離開發流程完成通知」                            │
 │ ❌ 失敗 → 回到開發修正                                           │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 主目錄：合併與清理                                               │
+│ 主目錄：合併與清理（用戶手動執行）                                │
 ├─────────────────────────────────────────────────────────────────┤
-│ git checkout develop                                            │
+│ cd /Users/fredericli/Git/Danova/Danova-woms                     │
+│ git checkout <基底分支>    # 從 TASK.md 查看                     │
 │ git merge feature-xxx                                           │
+│ git push origin <基底分支> # 推送到遠端                          │
 │ git worktree remove ./sub-danova-worm/feature-xxx               │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -262,24 +288,34 @@ git checkout <分支名稱>
 # 回到主目錄
 cd /Users/fredericli/Git/Danova/Danova-woms
 
-# 合併到 develop
-git checkout develop
+# 切回基底分支（從 TASK.md 的「任務資訊」區塊查看）
+git checkout <基底分支>
+
+# 合併功能分支
 git merge <分支名稱>
+
+# 推送到遠端
+git push origin <基底分支>
 
 # 刪除 worktree
 git worktree remove ./sub-danova-worm/<分支名稱>
 
 # 刪除本地分支（可選）
 git branch -d <分支名稱>
+
+# 刪除遠端分支（可選）
+git push origin --delete <分支名稱>
 ```
+
+> **注意**：基底分支記錄在 worktree 中的 `TASK.md` 檔案內。
 
 ---
 
 ## 注意事項
 
-1. **sub-danova-worm 目錄**：建議加入 `.gitignore`，避免意外提交
+1. **sub-danova-worm 目錄**：已加入 `.gitignore`，避免意外提交
 2. **同時開發多個任務**：每個任務一個 worktree，各自獨立
-3. **基底分支**：預設從 `develop` 建立，遵循專案的分支策略
+3. **基底分支**：從「啟動 /隔離開發 時所在的分支」建立，記錄於 TASK.md 中
 
 ---
 

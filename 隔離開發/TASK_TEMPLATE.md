@@ -8,8 +8,13 @@
 ```markdown
 # 開發任務：{任務標題}
 
-> 此檔案由「隔離開發」Skill 自動產生。
-> Claude 讀取後請依照計畫執行，每完成一個階段立即 commit + push。
+> ⚠️ **Claude 請注意**：這是由「隔離開發」Skill 自動產生的任務檔案。
+> 當用戶輸入「開始」、「執行」或「請讀取 TASK.md」時，請：
+> 1. 完整讀取此檔案
+> 2. 確認理解任務內容
+> 3. 依照「執行計畫」逐階段開發
+> 4. 每階段完成後 commit + push
+> 5. 所有階段完成後，依照「開發完成後流程」進行
 
 ---
 
@@ -109,13 +114,15 @@
 已執行：
 - git add {檔案清單}
 - git commit -m "feat: {說明}"
-- git push origin {分支名稱}
+- git push origin {branch_name}
 
 您可以在主目錄執行以下指令測試：
   cd /Users/fredericli/Git/Danova/Danova-woms
   git fetch origin
-  git checkout {分支名稱}
+  git checkout {branch_name}
   ./mvnw spring-boot:run
+
+📌 提醒：此分支完成後應合併回「{base_branch}」分支
 ```
 
 ---
@@ -126,8 +133,10 @@
 |------|-----|
 | 建立時間 | {YYYY-MM-DD HH:mm} |
 | 分支名稱 | {branch_name} |
-| 基底分支 | develop |
+| 基底分支 | {base_branch} |
 | Worktree 路徑 | ./sub-danova-worm/{branch_name} |
+
+> **重要**：開發完成後，此分支應合併回「{base_branch}」分支。
 
 ---
 
@@ -188,4 +197,42 @@
 ```
 
 等待用戶輸入「OKOKYES」後，執行 `/CodeReview` skill。
+
+---
+
+## 測試通過後：合併與清理（最終步驟）
+
+> ⚠️ 當 CodeReview 通過且測試通過後，輸出以下通知：
+
+```
+【隔離開發流程完成通知】
+
+✅ 分析階段 → 已完成
+✅ 開發階段 → 已完成
+✅ CodeReview → 已通過
+✅ 測試階段 → 已通過
+
+🎉 開發流程全部完成！
+
+📌 請執行以下步驟完成合併與清理：
+
+1. 回到主目錄：
+   cd /Users/fredericli/Git/Danova/Danova-woms
+
+2. 切回基底分支：
+   git checkout {base_branch}
+
+3. 合併功能分支：
+   git merge {branch_name}
+
+4. 推送到遠端：
+   git push origin {base_branch}
+
+5. 刪除 worktree：
+   git worktree remove ./sub-danova-worm/{branch_name}
+
+6. 刪除分支（可選）：
+   git branch -d {branch_name}
+   git push origin --delete {branch_name}
+```
 ```

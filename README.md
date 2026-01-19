@@ -99,10 +99,14 @@ claude
 ┌─────────────────────────────────────────────────────────────────┐
 │ 第 6 步：合併與清理                                              │
 │ $ cd /Users/fredericli/Git/Danova/Danova-woms                   │
-│ $ git checkout develop                                           │
+│ $ git checkout <基底分支>      # 切回原本切分出去的分支           │
 │ $ git merge feature-xxx                                          │
+│ $ git push origin <基底分支>   # 推送到遠端                       │
 │ $ git worktree remove ./sub-danova-worm/feature-xxx             │
-│ $ git branch -d feature-xxx  # 可選：刪除本地分支                 │
+│ $ git branch -d feature-xxx              # 可選：刪除本地分支     │
+│ $ git push origin --delete feature-xxx   # 可選：刪除遠端分支     │
+│                                                                 │
+│ 📌 基底分支記錄在 TASK.md 的「任務資訊」區塊                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
