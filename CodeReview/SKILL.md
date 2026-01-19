@@ -58,6 +58,8 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 
 | 類別 | 檢查項目 | 檢測模式 |
 |------|---------|---------|
+| **架構違規：跨 Controller** | Controller 使用其他頁面專用的 Service | 檢查 Controller 注入的 Service 是否為其他 Controller 專用 |
+| **架構違規：缺少專用 Service** | Controller 專用方法未放在專用 Service | 檢查 Controller 是否有對應的同名 Service |
 | **Lombok 禁用** | `@Data`, `@Getter`, `@Setter`, `@Builder`, `@AllArgsConstructor`, `@NoArgsConstructor`, `@ToString`, `@EqualsAndHashCode` | 正則：`@(Data\|Getter\|Setter\|Builder\|AllArgsConstructor\|NoArgsConstructor\|ToString\|EqualsAndHashCode)` |
 | **Lambda 禁用** | Lambda 表達式 `->` | 正則：`\s*->\s*` （排除註解與字串） |
 | **Stream 禁用** | `.stream()`, `.parallelStream()`, `.map()`, `.filter()`, `.collect()`, `.forEach()` | 正則：`\.(stream\|parallelStream\|map\|filter\|collect\|forEach)\s*\(` |
@@ -65,6 +67,28 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 | **硬編碼密碼** | password = "xxx", secret = "xxx" | 正則：`(password\|secret\|key\|token)\s*=\s*"[^"]+"`（忽略大小寫） |
 | **不安全亂數** | `new Random()` 用於安全場景 | 檢查 `java.util.Random` 用於 token/password 產生 |
 | **Exception 缺少堆疊追蹤** | `log.error()` 未傳入 Exception 物件 | 正則：`log\.error\s*\([^)]*\)\s*;` 且無第二參數為 Exception |
+
+#### 🔴 架構審查規範
+
+> ⚠️ **最高原則**：每一個前端網頁功能，對應到後端必須有專用的 RestController，絕對禁止跨 Controller 使用。
+
+**架構審查檢查項目**：
+
+| 檢查項目 | 判斷標準 | 違規處理 |
+|---------|---------|---------|
+| **跨 Controller 呼叫** | Controller A 注入 Controller B 專用的 Service | 🔴 必須修正 |
+| **缺少專用 Service** | Controller 有專用方法但沒有對應的同名 Service | 🔴 必須修正 |
+| **方法放錯 Service** | Controller 專用方法放在共用 Service | 🟡 建議修正 |
+
+**範例：判斷是否違規**
+
+```
+AiSourceCodeController 注入：
+├── AiKnowledgeBaseService     → ✅ OK（共用 Service）
+├── AiDatasetDocumentService   → ✅ OK（共用 Service）
+├── AiSourceCodeService        → ✅ OK（專用 Service，同名）
+└── AiDatasetTextService       → ❌ 違規（AiPromptController 專用）
+```
 
 #### 🟡 警告（建議修正）
 

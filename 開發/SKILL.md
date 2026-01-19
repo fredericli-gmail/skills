@@ -210,11 +210,108 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 ---
 
-## 7. 開發流程強制規範
+## 7. Controller / Service 架構規範（強制）
+
+> ⚠️ **最高原則**：每一個前端網頁功能，對應到後端必須有專用的 RestController，絕對禁止跨 Controller 使用，否則會造成權限控管混亂。
+
+### 7.1 架構設計原則
+
+| 規則 | 說明 |
+|------|------|
+| **專用 Controller** | 每個前端頁面/功能模組對應一個專用的 RestController |
+| **專用 Service** | Controller 專用的方法，放在同名的 Service 中（如 `UserController` → `UserService`） |
+| **禁止跨 Controller** | ❌ 禁止一個網頁功能呼叫其他 Controller 的 API |
+| **權限獨立** | 每個 Controller 有獨立的權限控制，不與其他功能混用 |
+
+### 7.2 命名規範
+
+```
+前端頁面              Controller                  Service
+─────────────────────────────────────────────────────────────
+使用者管理            UserController              UserService
+AI 知識庫管理         AiPromptController          AiPromptService / AiDatasetTextService
+AI 程式知識庫         AiSourceCodeController      AiSourceCodeService（專用）
+AI PDF 知識庫         AiPdfController             AiPdfService（專用）
+案件管理              CaseController              CaseService
+```
+
+### 7.3 開發時的架構檢查
+
+在開發新功能時，必須確認：
+
+1. **功能是否有專用 Controller**
+   - ✅ 有 → 在該 Controller 中新增/修改 API
+   - ❌ 沒有 → 建立新的專用 Controller
+
+2. **方法應放在哪個 Service**
+   - 若方法**只被此 Controller 使用** → 放在專用 Service（與 Controller 同名）
+   - 若方法**被多個 Controller 共用** → 放在通用 Service（如 `AiKnowledgeBaseService`）
+
+3. **檢查是否有跨 Controller 呼叫**
+   - ❌ 禁止 Controller A 注入 Controller B
+   - ❌ 禁止 Controller A 使用 Controller B 專用的 Service
+
+### 7.4 正確 vs 錯誤範例
+
+**✅ 正確架構**：
+```java
+// AiSourceCodeController 使用自己的專用 Service
+@RestController
+@RequestMapping("/api/admin/ai-source-codes")
+public class AiSourceCodeController {
+
+    private final AiSourceCodeService sourceCodeService;  // 專用 Service
+    private final AiKnowledgeBaseService knowledgeBaseService;  // 共用 Service（OK）
+
+    @PostMapping("/{id}/refresh-indexing-status")
+    public ResponseEntity<?> refreshIndexingStatus(@PathVariable Long id) {
+        // 呼叫專用 Service 的方法
+        return sourceCodeService.refreshIndexingStatus(id);
+    }
+}
+```
+
+**❌ 錯誤架構**：
+```java
+// 錯誤：AiSourceCodeController 使用其他頁面的 Service
+@RestController
+@RequestMapping("/api/admin/ai-source-codes")
+public class AiSourceCodeController {
+
+    // ❌ 錯誤：注入其他頁面專用的 Service
+    private final AiDatasetTextService textService;  // 這是 AiPromptController 專用的！
+
+    @PostMapping("/{id}/refresh-indexing-status")
+    public ResponseEntity<?> refreshIndexingStatus(@PathVariable Long id) {
+        // ❌ 錯誤：呼叫其他頁面專用 Service 的方法
+        return textService.refreshIndexingStatus(id);
+    }
+}
+```
+
+### 7.5 共用 Service vs 專用 Service 判斷標準
+
+| Service 類型 | 判斷標準 | 範例 |
+|-------------|---------|------|
+| **共用 Service** | 被 2+ 個 Controller 使用、提供基礎功能 | `AiKnowledgeBaseService`、`UserService`、`NotificationService` |
+| **專用 Service** | 只被 1 個 Controller 使用、提供頁面特定功能 | `AiSourceCodeService`、`AiPromptService`、`AiPdfService` |
+
+### 7.6 發現架構問題時的處理方式
+
+若發現現有程式碼違反此規範：
+
+1. **標記為架構問題**：在分析報告中標記 🔴 架構違規
+2. **建立專用 Service**：將方法移動或複製到專用 Service
+3. **更新 Controller**：改為注入專用 Service
+4. **測試驗證**：確保功能正常、權限控制正確
+
+---
+
+## 8. 開發流程強制規範
 
 > ⚠️ **最高原則**：任何開發任務皆不得在未完成分析前開始撰寫程式碼。
 
-### 7.1 分析階段要求
+### 8.1 分析階段要求
 1. **需求評估**：評估需求合理性，識別潛在風險。
 2. **系統分析報告**必須包含：
    - 受影響檔案清單
@@ -223,7 +320,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
    - **資安風險評估**：列出可能涉及的安全風險與對應防護措施
 3. **等待使用者確認**。
 
-### 7.2 啟動開發的唯一條件
+### 8.2 啟動開發的唯一條件
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -235,12 +332,12 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 7.3 開發階段要求
+### 8.3 開發階段要求
 - 依照分析報告的邏輯階段順序進行開發。
 - 每完成一個邏輯階段，立即執行 `git commit`。
 - 開發過程中發現新的資安風險，須立即補充說明並處理。
 
-### 7.4 完成檢查清單
+### 8.4 完成檢查清單
 - [ ] 所有程式碼皆有繁體中文註解
 - [ ] 無 Lombok、Lambda、Stream API 使用
 - [ ] 通過 Null Check 與異常處理檢查

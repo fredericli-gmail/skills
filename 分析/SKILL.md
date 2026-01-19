@@ -189,6 +189,61 @@ grep -rn "關鍵字" --include="*.ts" --include="*.tsx"
 
 常見問題的建議方案見 [SOLUTIONS.md](SOLUTIONS.md)。
 
+## Controller / Service 架構規範（強制）
+
+> ⚠️ **最高原則**：每一個前端網頁功能，對應到後端必須有專用的 RestController，絕對禁止跨 Controller 使用，否則會造成權限控管混亂。
+
+### 架構設計原則
+
+| 規則 | 說明 |
+|------|------|
+| **專用 Controller** | 每個前端頁面/功能模組對應一個專用的 RestController |
+| **專用 Service** | Controller 專用的方法，放在同名的 Service 中（如 `UserController` → `UserService`） |
+| **禁止跨 Controller** | ❌ 禁止一個網頁功能呼叫其他 Controller 的 API |
+| **權限獨立** | 每個 Controller 有獨立的權限控制，不與其他功能混用 |
+
+### 命名規範
+
+```
+前端頁面              Controller                  Service
+─────────────────────────────────────────────────────────────
+使用者管理            UserController              UserService
+AI 知識庫管理         AiPromptController          AiPromptService / AiDatasetTextService
+AI 程式知識庫         AiSourceCodeController      AiSourceCodeService（專用）
+AI PDF 知識庫         AiPdfController             AiPdfService（專用）
+```
+
+### 分析階段檢查項目
+
+在 Phase 3 程式碼掃描時，必須檢查：
+
+1. **功能是否有專用 Controller**
+   - ✅ 有 → 在該 Controller 中新增/修改 API
+   - ❌ 沒有 → 建立新的專用 Controller
+
+2. **方法是否應放在專用 Service**
+   - 若方法只被此 Controller 使用 → 放在專用 Service（與 Controller 同名）
+   - 若方法被多個 Controller 共用 → 放在通用 Service（如 `AiKnowledgeBaseService`）
+
+3. **是否有跨 Controller 呼叫**
+   - 發現跨 Controller 呼叫 → 標記為 🔴 架構問題，必須修正
+
+### 範例：正確 vs 錯誤
+
+```
+✅ 正確架構：
+AiSourceCodeController
+    └─→ AiSourceCodeService.refreshIndexingStatus()  （專用方法）
+    └─→ AiKnowledgeBaseService.findById()            （共用方法）
+
+❌ 錯誤架構：
+AiSourceCodeController
+    └─→ AiPromptController.refreshIndexingStatus()   （跨 Controller 呼叫）
+    └─→ AiDatasetTextService.refreshIndexingStatus() （使用其他頁面的 Service）
+```
+
+---
+
 ## 輸出品質標準
 
 ✓ 所有需求都有明確的驗收標準
@@ -196,6 +251,7 @@ grep -rn "關鍵字" --include="*.ts" --include="*.tsx"
 ✓ 設計方案可直接轉換為開發任務
 ✓ 風險都有對應的緩解策略
 ✓ 實作計畫具有可執行性
+✓ **架構設計符合 Controller/Service 規範**
 
 ## 常見陷阱
 
