@@ -1,6 +1,6 @@
 # 測試規劃模板
 
-標準化測試規劃文件模板。
+標準化測試規劃文件模板（Playwright 版本）。
 
 ## 目錄
 
@@ -21,14 +21,15 @@
 ## 基本資訊
 - 測試目標：[功能描述]
 - 測試 URL：[http://...]
-- 瀏覽器：Chrome（實體視窗）
-- 執行方式：pytest
+- 瀏覽器：Chromium（實體視窗，headless=False）
+- 執行方式：pytest + playwright
 
 ## 元素定位（從掃描取得）
 
-| 元素 | 定位方式 | 定位值 |
-|-----|---------|--------|
-| [元素名] | id | [value] |
+| 元素 | Playwright 定位 | 來源 |
+|-----|----------------|------|
+| [元素名] | page.locator("#id") | [檔案:行號] |
+| [元素名] | page.get_by_role("button", name="xxx") | [檔案:行號] |
 
 ## 測試案例
 
@@ -76,9 +77,10 @@
 
 | 項目 | 設定 |
 |-----|-----|
-| 測試 URL | http://localhost:3000 |
-| 瀏覽器 | Chrome（實體視窗，禁止 headless） |
-| 解析度 | 1920 x 1080 |
+| 測試 URL | http://localhost:8080 |
+| 瀏覽器 | Chromium（實體視窗，headless=False，slow_mo=500） |
+| 視窗大小 | 1920 x 1080 |
+| 測試框架 | pytest + playwright |
 | 作業系統 | [OS] |
 
 ---
@@ -87,18 +89,18 @@
 
 ### 2.1 登入頁面 `/login`
 
-| 元素名稱 | 定位方式 | 定位值 | 來源檔案 |
-|---------|---------|--------|---------|
-| 帳號輸入框 | id | username | Login.tsx:15 |
-| 密碼輸入框 | id | password | Login.tsx:20 |
-| 登入按鈕 | id | login-btn | Login.tsx:25 |
-| 錯誤訊息 | id | error-message | Login.tsx:30 |
+| 元素名稱 | Playwright 定位 | 定位值 | 來源檔案 |
+|---------|----------------|--------|---------|
+| 帳號輸入框 | page.locator("#username") | id=username | login.html:15 |
+| 密碼輸入框 | page.locator("#password") | id=password | login.html:20 |
+| 登入按鈕 | page.get_by_role("button", name="登入") | role=button | login.html:25 |
+| 錯誤訊息 | page.locator("#error-message") | id=error-message | login.html:30 |
 
 ### 2.2 [頁面名稱] `/path`
 
-| 元素名稱 | 定位方式 | 定位值 | 來源檔案 |
-|---------|---------|--------|---------|
-| [元素] | [方式] | [值] | [檔案] |
+| 元素名稱 | Playwright 定位 | 定位值 | 來源檔案 |
+|---------|----------------|--------|---------|
+| [元素] | [定位方式] | [值] | [檔案] |
 
 ---
 
@@ -124,15 +126,14 @@
 | 測試資料 | 帳號: testuser, 密碼: Test@123 |
 
 **測試步驟：**
-1. 開啟登入頁面 `/login`
-2. 在帳號欄位（id=username）輸入 `testuser`
-3. 在密碼欄位（id=password）輸入 `Test@123`
-4. 點擊登入按鈕（id=login-btn）
+1. `page.goto("http://localhost:8080/login")`
+2. `page.locator("#username").fill("testuser")`
+3. `page.locator("#password").fill("Test@123")`
+4. `page.get_by_role("button", name="登入").click()`
 
 **預期結果：**
-- 頁面跳轉至 `/dashboard`
-- 顯示歡迎訊息
-- 頁面右上角顯示用戶名稱
+- `expect(page).to_have_url(re.compile(r".*/dashboard"))`
+- `expect(page.get_by_text("歡迎")).to_be_visible()`
 
 ---
 
@@ -145,15 +146,14 @@
 | 測試資料 | 帳號: testuser, 密碼: wrongpwd |
 
 **測試步驟：**
-1. 開啟登入頁面 `/login`
-2. 在帳號欄位輸入 `testuser`
-3. 在密碼欄位輸入 `wrongpwd`
-4. 點擊登入按鈕
+1. `page.goto("http://localhost:8080/login")`
+2. `page.locator("#username").fill("testuser")`
+3. `page.locator("#password").fill("wrongpwd")`
+4. `page.get_by_role("button", name="登入").click()`
 
 **預期結果：**
-- 停留在登入頁面
-- 顯示錯誤訊息（id=error-message）：「帳號或密碼錯誤」
-- 密碼欄位清空
+- `expect(page).to_have_url(re.compile(r".*/login"))`
+- `expect(page.locator("#error-message")).to_have_text("帳號或密碼錯誤")`
 
 ---
 
@@ -189,20 +189,21 @@
 
 | 風險 | 影響 | 對策 |
 |-----|-----|-----|
-| 元素 ID 變更 | 測試失敗 | 重新掃描程式碼更新定位 |
-| 網路延遲 | 元素載入超時 | 增加等待時間、使用顯式等待 |
-| 測試資料被修改 | 測試結果不一致 | 每次測試前重置資料 |
+| 元素定位變更 | 測試失敗 | 重新掃描程式碼更新定位 |
+| 網路延遲 | 操作超時 | Playwright auto-wait 自動處理 |
+| 測試資料被修改 | 測試結果不一致 | 每次測試使用獨立 context |
+| 動畫干擾 | 元素點擊失敗 | 使用 reduced_motion 停用動畫 |
 
 ---
 
-## 7. 執行計畫
+## 7. 除錯工具
 
-| 階段 | 內容 | 預估時間 |
+| 工具 | 用途 | 使用方式 |
 |-----|-----|---------|
-| 環境準備 | 安裝套件、設定環境 | 30 分鐘 |
-| 冒煙測試 | 執行 P0 案例 | 1 小時 |
-| 完整測試 | 執行所有案例 | 4 小時 |
-| 結果分析 | 分析失敗案例、撰寫報告 | 1 小時 |
+| Trace Viewer | 回放測試過程 | `playwright show-trace trace.zip` |
+| 錄影 | 觀看測試影片 | `record_video_dir="videos/"` |
+| slow_mo | 放慢測試速度 | `slow_mo=500` |
+| 截圖 | 失敗時截圖 | `page.screenshot(path="error.png")` |
 ```
 
 ---
@@ -221,7 +222,6 @@
 | 測試類型 | 功能測試 / 整合測試 / E2E |
 | 優先級 | P0 / P1 / P2 |
 | 自動化 | 是 / 否 |
-| 預估時間 | X 分鐘 |
 
 ### 前置條件
 1. [條件 1]
@@ -233,22 +233,22 @@
 |-----|---|-----|
 | [欄位] | [值] | [說明] |
 
-### 測試步驟
+### 測試步驟（Playwright 指令）
 
-| 步驟 | 操作 | 元素定位 | 輸入值 |
-|-----|-----|---------|-------|
-| 1 | 開啟頁面 | - | /login |
-| 2 | 輸入帳號 | id=username | testuser |
-| 3 | 輸入密碼 | id=password | Test@123 |
-| 4 | 點擊登入 | id=login-btn | - |
+| 步驟 | 操作 | Playwright 指令 |
+|-----|-----|----------------|
+| 1 | 開啟頁面 | page.goto("/login") |
+| 2 | 輸入帳號 | page.locator("#username").fill("testuser") |
+| 3 | 輸入密碼 | page.locator("#password").fill("Test@123") |
+| 4 | 點擊登入 | page.get_by_role("button", name="登入").click() |
 
-### 預期結果
+### 預期結果（Playwright 斷言）
 
-| 驗證點 | 預期值 |
-|-------|-------|
-| URL | 包含 /dashboard |
-| 元素 (id=welcome) | 顯示「歡迎」|
-| [驗證點] | [預期值] |
+| 驗證點 | Playwright 斷言 |
+|-------|----------------|
+| URL | expect(page).to_have_url(re.compile(r".*/dashboard")) |
+| 歡迎訊息 | expect(page.get_by_text("歡迎")).to_be_visible() |
+| [驗證點] | [斷言] |
 
 ### 實際結果
 
@@ -335,8 +335,8 @@ VALID_FORM_DATA = {
 
 ```python
 BOUNDARY_DATA = {
-    "title_min": "A",  # 最小長度
-    "title_max": "A" * 100,  # 最大長度
+    "title_min": "A",
+    "title_max": "A" * 100,
     "description_empty": "",
     "description_max": "測試" * 500
 }
@@ -367,9 +367,11 @@ def valid_form_data():
     return VALID_FORM_DATA["case_create"]
 
 # test_login.py
-def test_admin_login(admin_account):
-    # 使用 fixture 提供的測試資料
-    driver.find_element(By.ID, "username").send_keys(admin_account["username"])
-    driver.find_element(By.ID, "password").send_keys(admin_account["password"])
+def test_admin_login(page, admin_account):
+    page.goto("http://localhost:8080/login")
+    page.locator("#username").fill(admin_account["username"])
+    page.locator("#password").fill(admin_account["password"])
+    page.get_by_role("button", name="登入").click()
+    expect(page).to_have_url(re.compile(r".*/dashboard"))
 ```
 ```
