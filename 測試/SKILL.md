@@ -217,19 +217,19 @@ grep -rn 'spring.profiles.active' --include="*.properties" --include="*.yml" src
 
 ```bash
 # 掃描 React 元件中的 data-testid 屬性
-grep -rn 'data-testid=' --include="*.tsx" --include="*.ts" src/
+grep -rn 'data-testid=' --include="*.jsx" --include="*.js" src/
 
 # 掃描表單元素（JSX 中的 input、button、select 等）
-grep -rn '<input\|<button\|<select\|<textarea\|<form' --include="*.tsx" src/
+grep -rn '<input\|<button\|<select\|<textarea\|<form' --include="*.jsx" src/
 
 # 掃描 aria-label（Playwright 可用 get_by_role 定位）
-grep -rn 'aria-label=\|role=' --include="*.tsx" src/
+grep -rn 'aria-label=\|role=' --include="*.jsx" src/
 
 # 掃描元件中的 id、name 屬性
-grep -rn 'id="\|name="\|htmlFor=' --include="*.tsx" src/
+grep -rn 'id="\|name="\|htmlFor=' --include="*.jsx" src/
 
 # 掃描路由定義（取得頁面路徑）
-grep -rn 'path="\|<Route\|<Navigate' --include="*.tsx" --include="*.ts" src/
+grep -rn 'path="\|<Route\|<Navigate' --include="*.jsx" --include="*.js" src/
 ```
 
 ### 2.2 掃描後端 API
@@ -253,7 +253,7 @@ grep -rn 'login\|Login\|logout\|Logout\|session\|Session' --include="*.java" --i
                               頁面元素掃描
 ================================================================================
 
-## 頁面：[頁面名稱] (src/pages/XxxPage.tsx 或 src/components/Xxx.tsx)
+## 頁面：[頁面名稱] (src/pages/XxxPage.jsx 或 src/components/Xxx.jsx)
 
 | 元素名稱 | Playwright 定位方式 | 定位值 | 行號 | 用途說明 |
 |---------|-------------------|--------|------|---------|

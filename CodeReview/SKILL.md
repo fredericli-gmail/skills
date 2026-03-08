@@ -37,7 +37,7 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
    即將審查以下檔案：
    ├── src/main/java/xxx/XxxController.java
    ├── src/main/java/xxx/XxxService.java
-   └── src/main/resources/templates/xxx.html
+   └── frontend/src/pages/XxxPage.jsx
 
    共 {n} 個檔案，是否開始審查？
    ```
@@ -110,7 +110,7 @@ AiSourceCodeController 注入：
 
 ---
 
-### 2.2 前端審查（React + TypeScript）
+### 2.2 前端審查（React + JSX）
 
 #### 🔴 錯誤（必須修正）
 
@@ -121,7 +121,7 @@ AiSourceCodeController 注入：
 | **XSS 風險** | URL 參數未使用 `encodeURIComponent()` | 檢查 URL 拼接是否有編碼 |
 | **禁用語法** | 使用 `var` 宣告變數 | 正則：`\bvar\s+` |
 | **禁用語法** | 使用 Class Component | 正則：`extends\s+(React\.)?Component` |
-| **型別缺失** | Props 未定義 TypeScript 介面 | 檢查元件參數是否有型別定義 |
+| **元件格式** | 使用 Class Component | 正則：`extends\s+(React\.)?Component` |
 
 #### 🟡 警告（建議修正）
 
@@ -129,7 +129,7 @@ AiSourceCodeController 注入：
 |------|---------|---------|
 | **Inline Style** | 使用行內 `style={{}}` 而非 Tailwind CSS | 正則：`style=\{\{` |
 | **useEffect 依賴** | `useEffect` 缺少依賴陣列或依賴不完整 | 檢查 `useEffect` 的第二參數 |
-| **any 型別** | TypeScript 使用 `any` 型別 | 正則：`:\s*any\b` |
+| **var 禁用** | 使用 `var` 宣告變數 | 正則：`\bvar\s+` |
 | **console.log** | 正式程式碼中殘留 `console.log` | 正則：`console\.log\(` |
 | **註解缺失** | 關鍵邏輯區塊缺少繁體中文註解 | 檢查 Hooks、方法、條件渲染是否有說明 |
 
@@ -167,13 +167,13 @@ AiSourceCodeController 注入：
 ├──────────────────────────┼──────────┼────────────────────────────────────┤
 │ UserService.java:45      │ Lombok   │ 發現 @Data 註解，須改為手寫 Getter │
 │ UserController.java:78   │ SQL      │ 字串拼接 SQL，有注入風險           │
-│ login.html:23            │ XSS      │ 使用 th:utext，應改為 th:text      │
+│ LoginPage.jsx:23         │ XSS      │ 使用 dangerouslySetInnerHTML       │
 └──────────────────────────┴──────────┴────────────────────────────────────┘
 
 修正建議：
 1. UserService.java:45 - 移除 @Data，手動撰寫 getter/setter 方法
 2. UserController.java:78 - 改用 JPA Named Parameter 或 PreparedStatement
-3. login.html:23 - 將 th:utext 改為 th:text
+3. LoginPage.jsx:23 - 移除 dangerouslySetInnerHTML，使用 React JSX 自動 escape
 
 ════════════════════════════════════════════════════════════════
 

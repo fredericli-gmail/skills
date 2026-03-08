@@ -11,7 +11,7 @@
 | 分析 | `/分析` | 需求分析與設計規劃 |
 | 開發 | `/開發` | Java 開發（禁用 Lombok/Lambda） |
 | CodeReview | `/CodeReview` | 程式碼審查 |
-| 測試 | `/測試` | Selenium 自動化測試 |
+| 測試 | `/測試` | Playwright 自動化測試 |
 | 重構 | `/重構` | 程式碼重構 |
 | **隔離開發** | `/隔離開發` | **Worktree 隔離開發模式** |
 
@@ -90,7 +90,7 @@ claude
         ▼ 審查通過 → 您確認 OKOKYES
 ┌─────────────────────────────────────────────────────────────────┐
 │ 第 5 步：測試                                                    │
-│ - Selenium 自動化測試                                            │
+│ - Playwright 自動化測試                                           │
 │ - 使用實體瀏覽器（非 headless）                                   │
 │ - 功能驗證                                                       │
 └─────────────────────────────────────────────────────────────────┘
@@ -185,7 +185,7 @@ git branch -D feature-xxx  # 強制刪除未合併的分支
 │   └── CHECKLIST.md
 ├── 測試/
 │   ├── SKILL.md
-│   ├── SELENIUM-REFERENCE.md
+│   ├── PLAYWRIGHT-REFERENCE.md
 │   ├── TEST-PLAN.md
 │   └── TROUBLESHOOTING.md
 ├── 重構/
