@@ -86,10 +86,10 @@ description: "專業需求分析與設計規劃工具。當用戶提出新功能
 
 ```bash
 # 了解專案結構
-find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.vue" -o -name "*.py" \) | head -100
+find . -type f \( -name "*.java" -o -name "*.jsx" -o -name "*.js" -o -name "*.css" -o -name "*.yml" \) | head -100
 
 # 搜尋相關程式碼
-grep -rn "關鍵字" --include="*.ts" --include="*.tsx"
+grep -rn "關鍵字" --include="*.java" --include="*.jsx" --include="*.js"
 ```
 
 掃描重點：
