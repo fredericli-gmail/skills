@@ -110,35 +110,36 @@ AiSourceCodeController 注入：
 
 ---
 
-### 2.2 前端審查（HTML/Thymeleaf/JavaScript/CSS）
+### 2.2 前端審查（React + TypeScript）
 
 #### 🔴 錯誤（必須修正）
 
 | 類別 | 檢查項目 | 檢測模式 |
 |------|---------|---------|
-| **XSS 風險** | 使用 `th:utext` | 正則：`th:utext` |
-| **XSS 風險** | 手動拼接 URL | 檢查 `href="..."` 內有 `${` 但未使用 `@{` |
+| **XSS 風險** | 使用 `dangerouslySetInnerHTML` | 正則：`dangerouslySetInnerHTML` |
 | **XSS 風險** | 使用 `eval()` 或 `new Function()` | 正則：`eval\s*\(\|new\s+Function\s*\(` |
-| **CSRF 風險** | POST 表單缺少 CSRF Token | 檢查 `<form` 有 `method="post"` 但無 `th:action` |
-| **CSRF 風險** | AJAX POST 未帶 CSRF Header | 檢查 `$.ajax` 或 `fetch` 的 POST 請求 |
+| **XSS 風險** | URL 參數未使用 `encodeURIComponent()` | 檢查 URL 拼接是否有編碼 |
+| **禁用語法** | 使用 `var` 宣告變數 | 正則：`\bvar\s+` |
+| **禁用語法** | 使用 Class Component | 正則：`extends\s+(React\.)?Component` |
+| **型別缺失** | Props 未定義 TypeScript 介面 | 檢查元件參數是否有型別定義 |
 
 #### 🟡 警告（建議修正）
 
 | 類別 | 檢查項目 | 檢測模式 |
 |------|---------|---------|
-| **Inline Style** | 使用 `style="..."` | 正則：`style\s*=\s*"` |
-| **Inline Script** | 使用 `onclick="..."` 等事件屬性 | 正則：`on(click\|change\|submit\|load)\s*=\s*"` |
-| **表單標籤** | `<input>` 缺少對應 `<label>` | 檢查 `<input` 的 `id` 是否有對應 `<label for="...">` |
-| **圖片替代文字** | `<img>` 缺少 `alt` 屬性 | 正則：`<img[^>]+(?!alt=)` |
-| **註解缺失** | 關鍵邏輯區塊缺少 HTML 註解 | 檢查 `th:if`, `th:each` 區塊是否有說明 |
+| **Inline Style** | 使用行內 `style={{}}` 而非 Tailwind CSS | 正則：`style=\{\{` |
+| **useEffect 依賴** | `useEffect` 缺少依賴陣列或依賴不完整 | 檢查 `useEffect` 的第二參數 |
+| **any 型別** | TypeScript 使用 `any` 型別 | 正則：`:\s*any\b` |
+| **console.log** | 正式程式碼中殘留 `console.log` | 正則：`console\.log\(` |
+| **註解缺失** | 關鍵邏輯區塊缺少繁體中文註解 | 檢查 Hooks、方法、條件渲染是否有說明 |
 
 #### 🟢 建議（可選改善）
 
 | 類別 | 檢查項目 |
 |------|---------|
-| **語意化標籤** | 是否使用 `<header>`, `<nav>`, `<main>`, `<footer>` 等 |
-| **CSS 命名** | 類別是否使用 kebab-case |
-| **!important** | 是否濫用 `!important` |
+| **元件拆分** | 單一元件是否過長（建議 < 200 行） |
+| **自訂 Hook** | 重複的狀態邏輯是否可提取為自訂 Hook |
+| **命名規範** | 元件 PascalCase、Hook use 前綴、API 模組 camelCase |
 
 ---
 
@@ -256,7 +257,7 @@ AiSourceCodeController 注入：
 ✅ 已找到對應的 Skill：「測試」(/測試)
 
 此 Skill 將協助您進行：
-- Selenium 自動化測試
+- Playwright 自動化測試
 - 使用實體瀏覽器（非 headless）
 - 元素定位掃描與測試撰寫
 

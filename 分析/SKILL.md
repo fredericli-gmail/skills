@@ -286,7 +286,7 @@ AiSourceCodeController
 
 此 Skill 將協助您進行：
 - Java 後端開發（禁用 Lombok、Lambda）
-- Thymeleaf 前端開發
+- React 18 + TypeScript + Vite + Tailwind CSS 前端開發
 - 資安規範檢查
 
 請輸入「OKOKYES」啟動「開發」Skill，或輸入其他內容繼續對話。

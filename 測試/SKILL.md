@@ -216,17 +216,20 @@ grep -rn 'spring.profiles.active' --include="*.properties" --include="*.yml" src
 針對**異動的檔案及其相關頁面**進行掃描：
 
 ```bash
-# 掃描 HTML/Thymeleaf 頁面的 ID、name、data-testid 屬性
-grep -rn 'id="\|name="\|th:id="\|th:name=\|data-testid=' --include="*.html" src/main/resources/templates/
+# 掃描 React 元件中的 data-testid 屬性
+grep -rn 'data-testid=' --include="*.tsx" --include="*.ts" src/
 
-# 掃描表單元素
-grep -rn '<form\|<input\|<button\|<select\|<textarea' --include="*.html" src/main/resources/templates/
-
-# 掃描 JavaScript 的元素操作
-grep -rn 'getElementById\|querySelector\|querySelectorAll' --include="*.js" src/main/resources/static/js/
+# 掃描表單元素（JSX 中的 input、button、select 等）
+grep -rn '<input\|<button\|<select\|<textarea\|<form' --include="*.tsx" src/
 
 # 掃描 aria-label（Playwright 可用 get_by_role 定位）
-grep -rn 'aria-label=\|role=' --include="*.html" src/main/resources/templates/
+grep -rn 'aria-label=\|role=' --include="*.tsx" src/
+
+# 掃描元件中的 id、name 屬性
+grep -rn 'id="\|name="\|htmlFor=' --include="*.tsx" src/
+
+# 掃描路由定義（取得頁面路徑）
+grep -rn 'path="\|<Route\|<Navigate' --include="*.tsx" --include="*.ts" src/
 ```
 
 ### 2.2 掃描後端 API
@@ -250,14 +253,14 @@ grep -rn 'login\|Login\|logout\|Logout\|session\|Session' --include="*.java" --i
                               頁面元素掃描
 ================================================================================
 
-## 頁面：[頁面名稱] (src/main/resources/templates/xxx.html)
+## 頁面：[頁面名稱] (src/pages/XxxPage.tsx 或 src/components/Xxx.tsx)
 
 | 元素名稱 | Playwright 定位方式 | 定位值 | 行號 | 用途說明 |
 |---------|-------------------|--------|------|---------|
-| 帳號輸入框 | page.locator("#username") | id=username | :25 | 登入帳號輸入 |
-| 密碼輸入框 | page.locator("#password") | id=password | :30 | 登入密碼輸入 |
+| 帳號輸入框 | page.get_by_label("帳號") | label=帳號 | :25 | 登入帳號輸入 |
+| 密碼輸入框 | page.get_by_label("密碼") | label=密碼 | :30 | 登入密碼輸入 |
 | 登入按鈕 | page.get_by_role("button", name="登入") | role=button | :35 | 提交登入表單 |
-| 錯誤訊息 | page.locator("#errorMsg") | id=errorMsg | :40 | 顯示登入錯誤 |
+| 錯誤訊息 | page.get_by_test_id("error-message") | data-testid | :40 | 顯示登入錯誤 |
 
 ================================================================================
                               API 端點掃描
@@ -380,7 +383,7 @@ grep -rn 'login\|Login\|logout\|Logout\|session\|Session' --include="*.java" --i
 
 ## TC-001: [測試案例名稱，例：正確帳密登入成功]
 
-**測試目的**：驗證 [具體目的]
+**測試目的**：驗證正確帳密可完成登入，且取得有效的認證 Token
 
 **前置條件**：
 1. 測試帳號已建立
@@ -391,30 +394,34 @@ grep -rn 'login\|Login\|logout\|Logout\|session\|Session' --include="*.java" --i
 | 步驟 | 操作 | Playwright 指令 | 預期結果 |
 |-----|------|----------------|---------|
 | 1 | 開啟登入頁面 | page.goto("[URL]/login") | 顯示登入表單 |
-| 2 | 輸入帳號 | page.locator("#username").fill("[帳號]") | 欄位顯示輸入值 |
-| 3 | 輸入密碼 | page.locator("#password").fill("[密碼]") | 欄位顯示遮罩 |
+| 2 | 輸入帳號 | page.get_by_label("帳號").fill("[帳號]") | 欄位顯示輸入值 |
+| 3 | 輸入密碼 | page.get_by_label("密碼").fill("[密碼]") | 欄位顯示遮罩 |
 | 4 | 點擊登入按鈕 | page.get_by_role("button", name="登入").click() | - |
-| 5 | 驗證登入成功 | expect(page).to_have_url(re.compile(r".*/dashboard")) | URL 包含 /dashboard |
+| 5 | 驗證頁面跳轉 | expect(page).to_have_url(re.compile(r".*/dashboard")) | URL 包含 /dashboard |
+| 6 | 驗證 Token 存在 | page.evaluate("localStorage.getItem('accessToken')") | 回傳非空 Token |
+| 7 | 驗證受保護 API | 使用 Token 呼叫受保護 API（如 /api/me） | 回傳 200 且使用者資訊正確 |
 
-**預期結果**：成功跳轉至首頁，顯示歡迎訊息
+**預期結果**：成功跳轉至首頁，取得有效 JWT Token，且 Token 可存取受保護 API
 
 ---
 
 ## TC-002: [測試案例名稱，例：錯誤密碼登入失敗]
 
-**測試目的**：驗證錯誤密碼時顯示適當錯誤訊息
+**測試目的**：驗證錯誤密碼時顯示適當錯誤訊息，且未產生 Token
 
 **測試步驟**：
 
 | 步驟 | 操作 | Playwright 指令 | 預期結果 |
 |-----|------|----------------|---------|
 | 1 | 開啟登入頁面 | page.goto("[URL]/login") | 顯示登入表單 |
-| 2 | 輸入帳號 | page.locator("#username").fill("[帳號]") | 欄位顯示輸入值 |
-| 3 | 輸入錯誤密碼 | page.locator("#password").fill("wrongpassword") | 欄位顯示遮罩 |
+| 2 | 輸入帳號 | page.get_by_label("帳號").fill("[帳號]") | 欄位顯示輸入值 |
+| 3 | 輸入錯誤密碼 | page.get_by_label("密碼").fill("wrongpassword") | 欄位顯示遮罩 |
 | 4 | 點擊登入按鈕 | page.get_by_role("button", name="登入").click() | - |
-| 5 | 驗證錯誤訊息 | expect(page.locator("#errorMsg")).to_have_text("帳號或密碼錯誤") | 顯示錯誤訊息 |
+| 5 | 驗證錯誤訊息 | expect(page.get_by_test_id("error-message")).to_have_text("帳號或密碼錯誤") | 顯示錯誤訊息 |
+| 6 | 驗證未產生 Token | page.evaluate("localStorage.getItem('accessToken')") | 回傳 null |
+| 7 | 驗證停留登入頁 | expect(page).to_have_url(re.compile(r".*/login")) | URL 仍為 /login |
 
-**預期結果**：停留在登入頁面，顯示錯誤訊息
+**預期結果**：停留在登入頁面，顯示錯誤訊息，localStorage 無 Token
 
 ---
 
@@ -513,44 +520,67 @@ playwright install chromium
 ```python
 import re
 import pytest
+import requests
 from playwright.sync_api import Page, expect
 
 class TestLogin:
     """登入功能測試"""
 
     def test_login_success(self, page: Page):
-        """TC-001: 正確帳密登入成功"""
+        """TC-001: 正確帳密登入成功（含端到端資料流驗證）"""
         # 開啟登入頁面
-        page.goto("http://localhost:8080/login")
+        page.goto("http://localhost:5173/login")
 
         # 輸入帳號（元素來自 Step 2 掃描）
-        page.locator("#username").fill("admin")
+        page.get_by_label("帳號").fill("admin")
 
         # 輸入密碼
-        page.locator("#password").fill("admin123")
+        page.get_by_label("密碼").fill("admin123")
 
         # 點擊登入按鈕
         page.get_by_role("button", name="登入").click()
 
-        # 驗證登入成功：URL 包含 /dashboard
+        # 驗證頁面跳轉至 Dashboard
         expect(page).to_have_url(re.compile(r".*/dashboard"))
 
+        # 驗證 localStorage 已儲存 JWT Token
+        token = page.evaluate("localStorage.getItem('accessToken')")
+        assert token is not None, "登入後應產生 accessToken"
+
+        # 使用 Token 呼叫受保護 API，驗證 Token 有效性
+        response = requests.get(
+            "http://localhost:8080/api/me",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200, "Token 應可存取受保護 API"
+
+        # 驗證回傳的使用者資訊正確
+        user_info = response.json()
+        assert user_info["username"] == "admin", "回傳的使用者名稱應為 admin"
+
     def test_login_wrong_password(self, page: Page):
-        """TC-002: 錯誤密碼登入失敗"""
+        """TC-002: 錯誤密碼登入失敗（含端到端資料流驗證）"""
         # 開啟登入頁面
-        page.goto("http://localhost:8080/login")
+        page.goto("http://localhost:5173/login")
 
         # 輸入帳號
-        page.locator("#username").fill("admin")
+        page.get_by_label("帳號").fill("admin")
 
         # 輸入錯誤密碼
-        page.locator("#password").fill("wrongpassword")
+        page.get_by_label("密碼").fill("wrongpassword")
 
         # 點擊登入按鈕
         page.get_by_role("button", name="登入").click()
 
         # 驗證錯誤訊息顯示
-        expect(page.locator("#errorMsg")).to_have_text("帳號或密碼錯誤")
+        expect(page.get_by_test_id("error-message")).to_have_text("帳號或密碼錯誤")
+
+        # 驗證未產生 Token（確保登入失敗未寫入任何認證資料）
+        token = page.evaluate("localStorage.getItem('accessToken')")
+        assert token is None, "登入失敗不應產生 accessToken"
+
+        # 驗證仍停留在登入頁面
+        expect(page).to_have_url(re.compile(r".*/login"))
 ```
 
 ### 4.5 conftest.py 設定範本
