@@ -108,12 +108,12 @@ grep -rn "關鍵字" --include="*.java" --include="*.jsx" --include="*.js"
 
 📝 相關檔案：
 [需修改]
-├── path/file1.ts - [修改原因]
-└── path/file2.ts - [修改原因]
+├── path/file1.jsx - [修改原因]
+└── path/file2.js - [修改原因]
 
 [可能受影響]
-├── path/related1.ts - [影響原因]
-└── path/related2.ts - [影響原因]
+├── path/related1.jsx - [影響原因]
+└── path/related2.js - [影響原因]
 
 ⚠️ 注意事項：
 - [技術債或問題]
@@ -286,7 +286,7 @@ AiSourceCodeController
 
 此 Skill 將協助您進行：
 - Java 後端開發（禁用 Lombok、Lambda）
-- React 18 + TypeScript + Vite + Tailwind CSS 前端開發
+- React 18 + Vite + Tailwind CSS 前端開發（JSX）
 - 資安規範檢查
 
 請輸入「OKOKYES」啟動「開發」Skill，或輸入其他內容繼續對話。

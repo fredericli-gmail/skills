@@ -1,6 +1,6 @@
 ---
 name: 開發
-description: Java 資深開發者協助。後端禁用 Lombok、Lambda 與 Stream API，必須手工撰寫所有 Getter/Setter，每行程式碼加繁體中文註解。前端採用 React 18 + TypeScript + Vite + Tailwind CSS 架構，使用函式元件與 Hooks 開發。嚴格遵守 XSS、CSRF、SQL Injection 等資安規範。所有開發必須先完成系統分析，使用者輸入 OKOKYES 後方可啟動開發。
+description: Java 資深開發者協助。後端禁用 Lombok、Lambda 與 Stream API，必須手工撰寫所有 Getter/Setter，每行程式碼加繁體中文註解。前端採用 React 18 + Vite + Tailwind CSS 架構（JSX），使用函式元件與 Hooks 開發。嚴格遵守 XSS、CSRF、SQL Injection 等資安規範。所有開發必須先完成系統分析，使用者輸入 OKOKYES 後方可啟動開發。
 ---
 
 # Skill: Full-Stack Developer (Java Backend + React Frontend)
@@ -8,7 +8,7 @@ description: Java 資深開發者協助。後端禁用 Lombok、Lambda 與 Strea
 ## Usage Trigger
 - 當涉及 Java 檔案 (.java) 或 Spring Boot 專案架構時自動啟用。
 - 當進行後端業務邏輯開發、POJO 建立或 API 修改時。
-- 當涉及 React 元件 (.tsx/.ts)、CSS 或前端開發時。
+- 當涉及 React 元件 (.jsx/.js)、CSS 或前端開發時。
 - 當涉及前端頁面新增、修改或遷移時。
 - 當進入測試，則請使用 測試 skill
 
@@ -23,21 +23,22 @@ description: Java 資深開發者協助。後端禁用 Lombok、Lambda 與 Strea
   - **禁用 Lambda**：禁止使用 Lambda 表達式或 Stream API，統一使用傳統 `for-loop`、`if-else` 與匿名內部類別。
 
 ### 1.2 前端技術規範
-- **前端框架**：強制使用 React 18 + TypeScript + Vite + Tailwind CSS 架構。
+- **前端框架**：強制使用 React 18 + Vite + Tailwind CSS 架構（JSX，非 TypeScript）。
 - **元件格式**：使用函式元件（Function Component），禁止使用 Class Component。
 - **狀態管理**：全域狀態使用 Zustand，伺服器快取可使用 React Query 或 SWR。
-- **TypeScript**：嚴格模式，所有 Props 必須定義型別介面。
+- **檔案格式**：前端使用 `.jsx` / `.js` 檔案，不使用 TypeScript（`.tsx` / `.ts`）。
 - **JavaScript 語法**：前端允許使用箭頭函式 `=>`、`const/let`、解構賦值、Template Literal，禁止使用 `var`。
 
 ### 1.3 資料庫異動規範
-- **強制使用 Flyway**：所有資料庫結構異動（DDL）必須透過 Flyway migration 管理。
+- **強制使用 Liquibase**：所有資料庫結構異動（DDL）必須透過 Liquibase changelog 管理。
 - **禁止直接操作資料庫**：
   - ❌ 禁止直接對資料庫執行 CREATE、ALTER、DROP 等 DDL 語句
   - ❌ 禁止使用 DBeaver、pgAdmin 等工具直接修改資料庫結構
   - ❌ 禁止在程式碼中使用 `spring.jpa.hibernate.ddl-auto=update/create`
-- **Migration 規範**：
-  - 使用 SQL 格式：`V{版本號}__{描述}.sql`
-  - 已執行的 migration 禁止修改
+- **Changelog 規範**：
+  - 使用 YAML 格式，檔案放在 `src/main/resources/db/changelog/changes/`
+  - 在 `db.changelog-master.yaml` 中引入新的 changelog
+  - 已執行的 changelog 禁止修改
 
 ---
 
@@ -80,7 +81,7 @@ private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
 ### 4.1 元件結構規範
 
-```tsx
+```jsx
 // ==================== 1. 匯入區 ====================
 // React 核心
 import { useState, useEffect, useCallback } from 'react'
@@ -92,26 +93,18 @@ import { userApi } from '@/api/users'
 import { useAuth } from '@/hooks/useAuth'
 // 元件
 import { DataTable } from '@/components/common/DataTable'
-// 型別
-import type { User } from '@/types/user'
 
-// ==================== 2. Props 型別定義 ====================
-interface UserListPageProps {
-  /** 是否為編輯模式 */
-  isEdit?: boolean
-}
-
-// ==================== 3. 元件定義 ====================
-export function UserListPage({ isEdit = false }: UserListPageProps) {
-  // ==================== 4. Hooks 呼叫 ====================
+// ==================== 2. 元件定義 ====================
+export function UserListPage({ isEdit = false }) {
+  // ==================== 3. Hooks 呼叫 ====================
   const navigate = useNavigate()
   const { hasPermission } = useAuth()
 
-  // ==================== 5. State ====================
+  // ==================== 4. State ====================
   const [loading, setLoading] = useState(false)
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState([])
 
-  // ==================== 6. 方法 ====================
+  // ==================== 5. 方法 ====================
   /** 載入使用者列表 */
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -125,12 +118,12 @@ export function UserListPage({ isEdit = false }: UserListPageProps) {
     }
   }, [])
 
-  // ==================== 7. Effects ====================
+  // ==================== 6. Effects ====================
   useEffect(() => {
     loadUsers()
   }, [loadUsers])
 
-  // ==================== 8. Render ====================
+  // ==================== 7. Render ====================
   return (
     <div className="p-6">
       {/* 頁面標題列 */}
@@ -146,19 +139,17 @@ export function UserListPage({ isEdit = false }: UserListPageProps) {
 
 | 項目 | 規範 | 範例 |
 |------|------|------|
-| **元件檔名** | PascalCase | `UserList.tsx`、`Modal.tsx` |
-| **頁面元件** | PascalCase + `Page` 後綴 | `DashboardPage.tsx`、`LoginPage.tsx` |
-| **Hook** | camelCase + `use` 前綴 | `useAuth.ts`、`useWebSocket.ts` |
-| **API 模組** | camelCase | `auth.ts`、`projects.ts` |
-| **Props 介面** | PascalCase + `Props` 後綴 | `UserListProps`、`ModalProps` |
-| **型別定義** | PascalCase | `User`、`Project`、`TaskStatus` |
+| **元件檔名** | PascalCase | `UserList.jsx`、`Modal.jsx` |
+| **頁面元件** | PascalCase + `Page` 後綴 | `DashboardPage.jsx`、`LoginPage.jsx` |
+| **Hook** | camelCase + `use` 前綴 | `useAuth.js`、`useWebSocket.js` |
+| **API 模組** | camelCase | `auth.js`、`projects.js` |
 | **CSS class** | Tailwind class 優先 | - |
 | **路由 path** | kebab-case | `/projects`、`/quick-start` |
 
 ### 4.3 API 客戶端規範
 
-```typescript
-// api/client.ts - Axios 實例 + JWT 攔截器
+```javascript
+// api/client.js - Axios 實例 + JWT 攔截器
 import axios from 'axios'
 
 const api = axios.create({
@@ -240,9 +231,9 @@ export default api
 
 **前端 React**：
 - [ ] 所有程式碼皆有繁體中文註解
-- [ ] TypeScript 嚴格模式通過
 - [ ] 無 `dangerouslySetInnerHTML`
-- [ ] Props 皆有 TypeScript 型別定義
+- [ ] 使用函式元件，無 Class Component
+- [ ] 無 `var` 宣告
 - [ ] 前端可正常建置（`npm run build`）
 
 ---
