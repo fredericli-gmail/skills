@@ -10,6 +10,7 @@
 |-------|------|------|
 | 分析 | `/分析` | 需求分析與設計規劃 |
 | 開發 | `/開發` | Java 開發（禁用 Lombok/Lambda） |
+| **Python開發** | `/Python開發` | **Python + React 全端開發（FastAPI + Vite）** |
 | CodeReview | `/CodeReview` | 程式碼審查 |
 | 測試 | `/測試` | Playwright 自動化測試 |
 | 重構 | `/重構` | 程式碼重構 |
@@ -156,11 +157,20 @@ git branch -D feature-xxx  # 強制刪除未合併的分支
 ## 標準 Skill 串接流程
 
 ```
+Java 專案流程：
 分析 Skill ─→ 開發 Skill ─→ CodeReview Skill ─→ 測試 Skill
     │             │              │                  │
     │             │              │                  └─ 失敗 → 開發
     │             │              └─ 失敗 → 開發
     │             └─ 開發完成
+    └─ OKOKYES 確認
+
+Python 專案流程：
+分析 Skill ─→ Python開發 Skill ─→ CodeReview Skill ─→ 測試 Skill
+    │               │                  │                  │
+    │               │                  │                  └─ 失敗 → Python開發
+    │               │                  └─ 失敗 → Python開發
+    │               └─ 開發完成
     └─ OKOKYES 確認
 
 隔離開發 Skill = 分析 + Worktree 建立 + 開發 + CodeReview + 測試
@@ -180,6 +190,9 @@ git branch -D feature-xxx  # 強制刪除未合併的分支
 │   └── SOLUTIONS.md
 ├── 開發/
 │   └── SKILL.md
+├── Python開發/
+│   ├── SKILL.md
+│   └── CHECKLIST.md
 ├── CodeReview/
 │   ├── SKILL.md
 │   └── CHECKLIST.md
