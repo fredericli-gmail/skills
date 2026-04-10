@@ -15,13 +15,54 @@ description: "待辦事項管理工具。追蹤所有開發任務的進度與狀
 
 ## 1. 待辦檔案位置
 
-待辦事項使用 Memory 機制儲存，跨對話可回憶。檔案位置由 Claude 自動偵測：
+待辦事項儲存於**目前專案目錄下**的 `memory/` 資料夾，可隨 git 版控同步到其他電腦：
 
 ```
-~/.claude/projects/<目前專案>/memory/todo_backlog.md
+<專案根目錄>/memory/todo_backlog.md
 ```
 
-> **註**：本 SKILL 使用相對路徑與 Memory 機制，不依賴特定使用者帳號。
+### 1.1 路徑規則
+
+- **相對路徑**：永遠使用專案根目錄相對路徑 `memory/todo_backlog.md`，不使用絕對路徑
+- **專案根目錄判定**：以當前 Claude Code 對話的 cwd 為準（通常是 git repo root）
+- **禁止使用 `~/.claude/` 下的全域路徑**：全域路徑無法跨電腦同步，已廢棄
+
+### 1.2 自動建立目錄
+
+首次讀取或寫入 `memory/todo_backlog.md` 時，若 `memory/` 目錄不存在，**必須自動建立**：
+
+```bash
+mkdir -p memory
+```
+
+### 1.3 Git 版控建議
+
+`memory/todo_backlog.md` 應加入 git 追蹤，這樣：
+- ✅ 跨電腦同步待辦狀態（git clone / pull 後自動取得最新待辦）
+- ✅ 多人協作時可透過 PR 審閱待辦變更
+- ✅ 歷史追蹤（可看到待辦的新增/完成時間點）
+
+**不建議**在 `.gitignore` 中排除 `memory/`，除非此目錄含有敏感資訊。
+
+### 1.4 遷移舊版待辦
+
+若偵測到舊版全域位置仍存在待辦：
+
+```
+~/.claude/projects/<專案名>/memory/todo_backlog.md
+```
+
+應**主動提醒使用者**：
+
+```
+💡 偵測到舊版全域待辦（~/.claude/projects/.../memory/todo_backlog.md）
+是否要將內容遷移到專案目錄的 memory/todo_backlog.md？（推薦：可跨電腦同步）
+```
+
+使用者同意後：
+1. 讀取舊版檔案內容
+2. 寫入新路徑 `<專案>/memory/todo_backlog.md`
+3. 刪除舊版檔案（或保留作為備份，由使用者決定）
 
 ---
 
