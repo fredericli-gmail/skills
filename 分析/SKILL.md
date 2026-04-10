@@ -1,9 +1,11 @@
 ---
 name: 分析
-description: "專業需求分析與設計規劃工具。當用戶提出新功能需求、系統改進、或任何開發任務時觸發。執行完整的需求理解、現有程式碼掃描、問題識別、風險評估，並產出結構化的分析報告與設計方案。適用於：(1) 新功能開發需求分析 (2) 系統重構評估 (3) 技術可行性分析 (4) 架構設計規劃 (5) 需求釐清與確認流程。當用戶說「分析這個需求」、「我需要做 XXX 功能」、「幫我規劃」、「評估可行性」時觸發此 skill。"
+description: "專業需求分析與設計規劃工具。當用戶提出新功能需求、系統改進、或任何開發任務時觸發。執行完整的需求理解、現有程式碼掃描、問題識別、風險評估，並產出結構化的分析報告與設計方案。適用於：(1) 新功能開發需求分析 (2) 系統重構評估 (3) 技術可行性分析 (4) 架構設計規劃 (5) 需求釐清與確認流程。當用戶說「分析這個需求」、「我需要做 XXX 功能」、「幫我規劃」、「評估可行性」時觸發此 skill。確認後使用者必須輸入 OKOKYES 才會啟動下一階段。"
 ---
 
 # 需求分析與設計規劃
+
+> ⚠️ **本 SKILL 引用共享規範**：架構規範請見 [_shared/CODING-STANDARDS.md](../_shared/CODING-STANDARDS.md) §1。
 
 ## Overview
 
@@ -11,17 +13,12 @@ description: "專業需求分析與設計規劃工具。當用戶提出新功能
 
 ## Workflow Decision Tree
 
-### 收到新需求
-執行完整的「五階段分析流程」
-
-### 需求不明確
-使用「Phase 2: 疑問識別」提出問題
-
-### 需要評估影響範圍
-使用「Phase 3: 程式碼掃描」
-
-### 需要完整設計文件
-使用「Phase 4: 設計規劃」並參考 [TEMPLATES.md](TEMPLATES.md)
+| 情境 | 處理方式 |
+|------|---------|
+| 收到新需求 | 執行完整的「五階段分析流程」 |
+| 需求不明確 | 使用 Phase 2「疑問識別」提出問題 |
+| 需要評估影響範圍 | 使用 Phase 3「程式碼掃描」 |
+| 需要完整設計文件 | 使用 Phase 4「設計規劃」並參考 [TEMPLATES.md](TEMPLATES.md) |
 
 ## 五階段分析流程
 
@@ -29,9 +26,9 @@ description: "專業需求分析與設計規劃工具。當用戶提出新功能
 
 收到需求後，立即執行：
 
-1. **複述需求** - 用自己的話重新描述
-2. **識別關鍵字** - 提取核心概念、實體、行為
-3. **界定範圍** - 明確什麼在/不在範圍內
+1. **複述需求** — 用自己的話重新描述
+2. **識別關鍵字** — 提取核心概念、實體、行為
+3. **界定範圍** — 明確什麼在/不在範圍內
 
 輸出格式：
 ```
@@ -48,17 +45,10 @@ description: "專業需求分析與設計規劃工具。當用戶提出新功能
 
 #### 必須涵蓋的問題類別
 
-**功能性疑問**
-- 邊界條件處理？異常情況處理？預設值？
-
-**非功能性疑問**
-- 效能要求？安全性考量？可擴展性需求？
-
-**業務邏輯疑問**
-- 業務規則完整性？特殊案例？與現有流程關係？
-
-**技術可行性疑問**
-- 現有架構支援度？需要新技術？技術債處理？
+- **功能性疑問**：邊界條件、異常處理、預設值
+- **非功能性疑問**：效能、安全性、可擴展性
+- **業務邏輯疑問**：業務規則、特殊案例、與現有流程關係
+- **技術可行性疑問**：架構支援度、技術債
 
 #### 問題分級輸出格式
 
@@ -85,11 +75,11 @@ description: "專業需求分析與設計規劃工具。當用戶提出新功能
 執行系統化掃描：
 
 ```bash
-# 了解專案結構
-find . -type f \( -name "*.java" -o -name "*.jsx" -o -name "*.js" -o -name "*.css" -o -name "*.yml" \) | head -100
+# 了解專案結構（依專案技術棧調整）
+find . -type f \( -name "*.java" -o -name "*.py" -o -name "*.jsx" -o -name "*.html" \) | head -100
 
 # 搜尋相關程式碼
-grep -rn "關鍵字" --include="*.java" --include="*.jsx" --include="*.js"
+grep -rn "關鍵字" --include="*.java" --include="*.py"
 ```
 
 掃描重點：
@@ -98,6 +88,7 @@ grep -rn "關鍵字" --include="*.java" --include="*.jsx" --include="*.js"
 - 可能受影響的檔案
 - 現有測試覆蓋
 - 技術債識別
+- **架構檢查**：是否符合 Controller/Service 規範（見共享規範 §1）
 
 輸出格式：
 ```
@@ -108,12 +99,12 @@ grep -rn "關鍵字" --include="*.java" --include="*.jsx" --include="*.js"
 
 📝 相關檔案：
 [需修改]
-├── path/file1.jsx - [修改原因]
-└── path/file2.js - [修改原因]
+├── path/file1 - [修改原因]
+└── path/file2 - [修改原因]
 
 [可能受影響]
-├── path/related1.jsx - [影響原因]
-└── path/related2.js - [影響原因]
+├── path/related1 - [影響原因]
+└── path/related2 - [影響原因]
 
 ⚠️ 注意事項：
 - [技術債或問題]
@@ -138,18 +129,18 @@ grep -rn "關鍵字" --include="*.java" --include="*.jsx" --include="*.js"
    2.3 限制條件
 
 3. 技術設計
-   3.1 架構設計
+   3.1 架構設計（必須符合共享規範 §1）
    3.2 資料設計
    3.3 介面設計
    3.4 實作計畫
 
 4. 風險評估
    4.1 技術風險
-   4.2 業務風險
+   4.2 業務風險（含資安風險，依共享規範 SECURITY-CHECKLIST.md 評估）
    4.3 緩解策略
 
 5. 實作計畫
-   5.1 任務拆解
+   5.1 任務拆解（明確標記每個邏輯階段包含的檔案，作為後續 commit 依據）
    5.2 預估工時
    5.3 里程碑
 
@@ -183,64 +174,11 @@ grep -rn "關鍵字" --include="*.java" --include="*.jsx" --include="*.js"
 ### 問題格式要求
 
 每個問題必須包含：
-1. **問題本身** - 清楚描述疑問
-2. **為什麼重要** - 對設計的影響
-3. **建議方案** - Claude 的建議處理方式
+1. **問題本身** — 清楚描述疑問
+2. **為什麼重要** — 對設計的影響
+3. **建議方案** — Claude 的建議處理方式
 
 常見問題的建議方案見 [SOLUTIONS.md](SOLUTIONS.md)。
-
-## Controller / Service 架構規範（強制）
-
-> ⚠️ **最高原則**：每一個前端網頁功能，對應到後端必須有專用的 RestController，絕對禁止跨 Controller 使用，否則會造成權限控管混亂。
-
-### 架構設計原則
-
-| 規則 | 說明 |
-|------|------|
-| **專用 Controller** | 每個前端頁面/功能模組對應一個專用的 RestController |
-| **專用 Service** | Controller 專用的方法，放在同名的 Service 中（如 `UserController` → `UserService`） |
-| **禁止跨 Controller** | ❌ 禁止一個網頁功能呼叫其他 Controller 的 API |
-| **權限獨立** | 每個 Controller 有獨立的權限控制，不與其他功能混用 |
-
-### 命名規範
-
-```
-前端頁面              Controller                  Service
-─────────────────────────────────────────────────────────────
-使用者管理            UserController              UserService
-AI 知識庫管理         AiPromptController          AiPromptService / AiDatasetTextService
-AI 程式知識庫         AiSourceCodeController      AiSourceCodeService（專用）
-AI PDF 知識庫         AiPdfController             AiPdfService（專用）
-```
-
-### 分析階段檢查項目
-
-在 Phase 3 程式碼掃描時，必須檢查：
-
-1. **功能是否有專用 Controller**
-   - ✅ 有 → 在該 Controller 中新增/修改 API
-   - ❌ 沒有 → 建立新的專用 Controller
-
-2. **方法是否應放在專用 Service**
-   - 若方法只被此 Controller 使用 → 放在專用 Service（與 Controller 同名）
-   - 若方法被多個 Controller 共用 → 放在通用 Service（如 `AiKnowledgeBaseService`）
-
-3. **是否有跨 Controller 呼叫**
-   - 發現跨 Controller 呼叫 → 標記為 🔴 架構問題，必須修正
-
-### 範例：正確 vs 錯誤
-
-```
-✅ 正確架構：
-AiSourceCodeController
-    └─→ AiSourceCodeService.refreshIndexingStatus()  （專用方法）
-    └─→ AiKnowledgeBaseService.findById()            （共用方法）
-
-❌ 錯誤架構：
-AiSourceCodeController
-    └─→ AiPromptController.refreshIndexingStatus()   （跨 Controller 呼叫）
-    └─→ AiDatasetTextService.refreshIndexingStatus() （使用其他頁面的 Service）
-```
 
 ---
 
@@ -251,7 +189,7 @@ AiSourceCodeController
 ✓ 設計方案可直接轉換為開發任務
 ✓ 風險都有對應的緩解策略
 ✓ 實作計畫具有可執行性
-✓ **架構設計符合 Controller/Service 規範**
+✓ **架構設計符合共享規範 §1 的 Controller/Service 規範**
 
 ## 常見陷阱
 
@@ -276,24 +214,33 @@ AiSourceCodeController
 ### 強制執行步驟
 
 1. **確認分析完成**：使用者已輸入 `OKOKYES` 同意分析報告
-2. **明確告知找到下一個 Skill**：必須輸出以下格式的訊息
+2. **判斷專案技術棧**，選擇對應的開發 Skill：
+
+| 技術棧 | 判斷依據 | 串接 Skill |
+|-------|---------|-----------|
+| **Java 後端** | 涉及 `.java` 檔案、Spring Boot、Maven `pom.xml` | `/開發-Java後端` |
+| **Python 後端** | 涉及 `.py` 檔案、FastAPI、`requirements.txt` / `pyproject.toml` | `/開發-Python後端` |
+| **React 前端** | 涉及 `.jsx`/`.js` 檔案、`vite.config.js`、`package.json` | `/開發-React前端` |
+| **Thymeleaf 前端** | 涉及 `templates/*.html`、Spring Boot 模板 | `/開發-Thymeleaf前端` |
+
+> **註**：全端專案可能同時觸發後端 + 前端兩個開發 SKILL。
+
+3. **明確告知找到下一個 Skill**：
 
 ```
 【Skill 串接通知】
 
 ✅ 分析階段已完成
-✅ 已找到對應的 Skill：「開發」(/開發)
+✅ 已找到對應的 Skill：「<開發 SKILL 名稱>」
 
 此 Skill 將協助您進行：
-- Java 後端開發（禁用 Lombok、Lambda）
-- React 18 + Vite + Tailwind CSS 前端開發（JSX）
-- 資安規範檢查
+- [SKILL 簡述]
 
-請輸入「OKOKYES」啟動「開發」Skill，或輸入其他內容繼續對話。
+請輸入「OKOKYES」啟動下一個 Skill，或輸入其他內容繼續對話。
 ```
 
-3. **等待使用者確認**：
-   - ✅ 使用者輸入 `OKOKYES` → 立即執行 `/開發` skill
+4. **等待使用者確認**：
+   - ✅ 使用者輸入 `OKOKYES` → 立即執行對應的開發 Skill
    - ❌ 使用者輸入其他內容 → 不啟動，繼續正常對話
 
 ### 禁止行為
