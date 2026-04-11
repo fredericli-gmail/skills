@@ -235,13 +235,29 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 
 ## 5. Skill 串接機制（強制執行）
 
-### 5.1 審查通過 → Commit
+### 5.1 審查通過 → 原始碼掃描（SAST）
 
 ```
 【Skill 串接通知】
 
 ✅ CodeReview 審查通過
 ✅ 無必須修正的錯誤項目
+✅ 已找到對應的 Skill：「原始碼掃描」(/原始碼掃描)
+
+此 Skill 將協助您進行：
+- 依 OWASP Top 10 2021 進行靜態資安掃描
+- 使用 Semgrep / Bandit / SpotBugs / ESLint Security 等工具
+- 產出含嚴重度、OWASP 分類、修補建議的資安報告
+- 掃描通過後可繼續串接「網頁弱點掃描」與「滲透測試」
+
+請輸入「OKOKYES」啟動「原始碼掃描」Skill，或輸入「跳過」直接進入「Commit」，或輸入其他內容繼續對話。
+```
+
+### 5.2 原始碼掃描通過 / 使用者跳過 → Commit
+
+```
+【Skill 串接通知】
+
 ✅ 已找到對應的 Skill：「Commit」(/Commit)
 
 此 Skill 將協助您進行：
@@ -253,7 +269,7 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 請輸入「OKOKYES」啟動「Commit」Skill，或輸入其他內容繼續對話。
 ```
 
-### 5.2 審查失敗 → 開發
+### 5.3 審查失敗 → 開發
 
 ```
 【Skill 串接通知】
