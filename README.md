@@ -53,7 +53,9 @@ skills/
 │
 ├── Commit/                      # Git 規範化提交
 │   └── SKILL.md
-└── 待辦事項/                    # 跨對話任務追蹤
+├── 待辦事項/                    # 跨對話任務追蹤
+│   └── SKILL.md
+└── Bug管理/                     # Azure DevOps Bug 單管理（pull/sync/close/comment/attach）
     └── SKILL.md
 ```
 
