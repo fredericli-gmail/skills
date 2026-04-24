@@ -55,6 +55,8 @@ skills/
 │   └── SKILL.md
 ├── 待辦事項/                    # 跨對話任務追蹤
 │   └── SKILL.md
+├── Bug管理/                     # Azure DevOps Bug 單管理（pull/sync/close/comment/attach）
+│   └── SKILL.md
 └── 簡報/                        # 簡報撰寫與品質檢查（16:9、統一版面規範）
     ├── SKILL.md
     └── PPTX-RECIPES.md          # python-pptx 實作配方（常數、標題區、卡片、驗證）
