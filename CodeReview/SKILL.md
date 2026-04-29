@@ -9,6 +9,7 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 > - 編碼規範：[_shared/CODING-STANDARDS.md](../_shared/CODING-STANDARDS.md)
 > - 資安規範：[_shared/SECURITY-CHECKLIST.md](../_shared/SECURITY-CHECKLIST.md)
 > - 完整檢查項目：[CHECKLIST.md](CHECKLIST.md)
+> - GitHub Models 引擎：[COPILOT.md](COPILOT.md)
 
 ## Usage Trigger
 
@@ -44,9 +45,115 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
    共 {n} 個檔案，是否開始審查？
    ```
 
-### 1.2 審查執行
+### 1.2 審查引擎選擇（強制執行）
 
-依序讀取每個檔案，逐一檢查 [CHECKLIST.md](CHECKLIST.md) 中的項目。
+> ⚠️ **每次審查啟動時都必須詢問引擎選擇，不得自動套用上次選擇**。
+
+#### 1.2.1 引擎選單
+
+```
+【審查引擎選擇】
+
+請選擇本次審查使用的引擎：
+
+  [1] Claude CLI 內建引擎（預設）
+      - 由 Claude 逐檔讀取，依 CHECKLIST.md 規則比對
+      - 完全離線、不需 GitHub Token
+      - 規則明確、結果穩定
+
+  [2] GitHub Models 引擎
+      - 透過 ~/Copilota/code_review.py 呼叫 GitHub Models API
+      - 預設模型：openai/gpt-4o（可由環境變數 COPILOT_REVIEW_MODEL 覆寫）
+      - 需設定 GITHUB_TOKEN / GH_TOKEN 環境變數
+      - LLM 推理、可能發現規則外的潛在問題
+
+請輸入「1」、「2」或「OKOKYES」（OKOKYES = 預設使用引擎 1）。
+```
+
+#### 1.2.2 GitHub Models 引擎前置檢查
+
+若使用者選擇 `[2]`，**必須**依序檢查：
+
+```bash
+# 檢查項 1：腳本是否存在
+test -f ~/Copilota/code_review.py
+
+# 檢查項 2：Python 3
+command -v python3
+
+# 檢查項 3：環境變數（不得印出 token 內容）
+test -n "${GH_TOKEN:-${GITHUB_TOKEN}}"
+```
+
+**任一項失敗** → 顯示原因 → **自動 fallback 至引擎 [1]** 並提示使用者：
+
+```
+⚠️ GitHub Models 引擎不可用：<原因>
+👉 已自動 fallback 至 Claude CLI 內建引擎
+   修復方式：<對應修復指引，例如 export GITHUB_TOKEN=...>
+```
+
+#### 1.2.3 引擎參數記錄
+
+確認可用後，輸出本次審查的引擎資訊：
+
+```
+📌 本次審查引擎：GitHub Models
+📌 模型：openai/gpt-4o（或 COPILOT_REVIEW_MODEL 設定值）
+📌 上下文：受影響檔案 + 相關依賴檔案
+```
+
+---
+
+### 1.3 審查執行
+
+#### 1.3.A Claude CLI 內建引擎
+
+依序讀取每個檔案，逐一檢查 [CHECKLIST.md](CHECKLIST.md) 中的項目，套用 §3 報告格式。
+
+#### 1.3.B GitHub Models 引擎
+
+> 詳細規範見 [COPILOT.md](COPILOT.md)
+
+**Step 1：收集審查素材**
+
+```bash
+# 取得本次異動檔案清單
+CHANGED=$(git diff --name-only HEAD)
+CONTEXT=$(echo "$CHANGED" | tr '\n' ',' | sed 's/,$//')
+
+# 識別相關依賴檔案（被異動檔案 import 或繼承的檔案）
+# 由 SKILL 智慧分析後填入 RELATED 變數
+```
+
+**Step 2：呼叫審查腳本**
+
+```bash
+git diff HEAD | python3 ~/Copilota/code_review.py \
+    --context "$CONTEXT" \
+    --related "$RELATED" \
+    > /tmp/code_review_result.json \
+    2> /tmp/code_review_stderr.log
+
+REVIEW_EXIT=$?
+```
+
+**Step 3：依退出碼處理**
+
+| Exit Code | 動作 |
+|-----------|------|
+| `0` | 解析 JSON 結果，套用 §3 報告格式呈現 |
+| `1` (`missing_token`) | 提示使用者設定 `GITHUB_TOKEN` → fallback 至引擎 [1] |
+| `1` (`empty_diff`) | 提示無異動，跳過審查 |
+| `2` (`invalid_response`) | 顯示 raw_response → 詢問是否 fallback 至引擎 [1] |
+| `3` (`http_error`) | 顯示錯誤碼 → 詢問是否 fallback 至引擎 [1] |
+| `4` (`exception`) | 顯示例外資訊 → 詢問是否 fallback 至引擎 [1] |
+
+**Step 4：報告呈現**
+
+- 套用 §3 三級分類報告格式
+- **必須**附註引擎來源：`📌 審查引擎：GitHub Models（model=<模型名稱>）`
+- **必須**保留原始 JSON 摘要供使用者查閱
 
 ---
 
@@ -290,16 +397,31 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 
 ## 6. 禁止行為
 
+### 6.1 流程紅線
+
 - ❌ 禁止未執行審查就宣告通過
 - ❌ 禁止忽略 🔴 錯誤項目
 - ❌ 禁止未告知就自動啟動下一個 Skill
 - ❌ 禁止跳過「已找到 Skill」的通知
 - ❌ 禁止接受 `OKOKYES` 以外的確認詞彙啟動 Skill
+- ❌ 禁止跳過「引擎選擇」步驟自動套用某一引擎
+- ❌ 禁止記憶上次的引擎選擇（每次都必須詢問）
+
+### 6.2 安全紅線（GitHub Models 引擎）
+
+- ❌ **絕對禁止**將 `GITHUB_TOKEN` / `GH_TOKEN` 寫入任何檔案（SKILL、settings.json、commit log、註解）
+- ❌ **絕對禁止**在訊息或日誌中印出 token 完整字串（即使部分截斷亦不可）
+- ❌ **絕對禁止**將使用者程式碼上傳至 GitHub Models 以外的服務
+- ❌ **絕對禁止**要求使用者在對話中貼出 token 內容
+- ✅ **必須**僅從環境變數讀取 token
+- ✅ **必須**在 token 不存在時，引導使用者自行設定（提供命令範例，但不接收使用者貼出的 token）
 
 ---
 
 ## 7. 相關文件
 
-- [CHECKLIST.md](CHECKLIST.md) — 完整審查檢查清單與正則表達式
+- [CHECKLIST.md](CHECKLIST.md) — 完整審查檢查清單與正則表達式（Claude 引擎使用）
+- [COPILOT.md](COPILOT.md) — GitHub Models 引擎使用規範
 - [_shared/CODING-STANDARDS.md](../_shared/CODING-STANDARDS.md) — 共享編碼規範
 - [_shared/SECURITY-CHECKLIST.md](../_shared/SECURITY-CHECKLIST.md) — 共享資安規範
+- `~/Copilota/code_review.py` — GitHub Models 審查腳本
