@@ -23,27 +23,67 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 
 ### 1.1 審查前置作業
 
-1. **確認審查範圍**：
-   - 預設：審查本次開發階段異動的所有檔案
-   - 可選：使用者指定特定檔案進行審查
+#### 1.1.1 審查範圍選擇（強制執行）
 
-2. **取得異動檔案清單**：
-   ```bash
-   git diff --name-only HEAD~1
-   git status --porcelain
-   ```
+> ⚠️ **每次審查啟動時都必須詢問範圍選擇，不得記憶上次選擇**。
 
-3. **輸出審查範圍確認**：
-   ```
-   【審查範圍確認】
+```
+【審查範圍選擇】
 
-   即將審查以下檔案：
-   ├── src/main/java/xxx/XxxController.java
-   ├── src/main/java/xxx/XxxService.java
-   └── src/main/resources/templates/xxx.html
+請選擇本次審查涵蓋的範圍：
 
-   共 {n} 個檔案，是否開始審查？
-   ```
+  [1] 工作區未 commit 的異動（預設）
+      內容：git diff HEAD（含 staged 與 unstaged） + 未追蹤新檔
+      適用：開發中還沒 commit 想先做一次審查
+
+  [2] 最近一個 commit（HEAD~1..HEAD）
+      內容：上一個 commit 的所有異動
+      適用：剛 commit 完想立即審查
+
+  [3] 整條 feature branch（main..HEAD）
+      內容：本分支自 main 分歧後累積的全部異動
+      適用：feature branch 累積多個 commit 想一次審完
+
+  [4] 指定檔案
+      內容：使用者輸入檔案路徑（逗號分隔），整檔案審查
+      適用：只想審查特定檔案、無 diff 比較
+
+  [5] 全專案（不限異動）
+      內容：所有受版控的程式碼檔案
+      適用：初次接手專案做整體審查（耗時較久、token 消耗大）
+
+請輸入「1」～「5」或「OKOKYES」（OKOKYES = 預設使用 [1]）。
+```
+
+#### 1.1.2 依範圍取得檔案與 diff
+
+依使用者選擇執行對應指令：
+
+| 選項 | 檔案清單命令 | Diff 命令 | 說明 |
+|------|-------------|-----------|------|
+| `[1]` | `git status --porcelain` + `git diff --name-only HEAD` | `git diff HEAD` | 工作區異動（含未 staged） |
+| `[2]` | `git diff --name-only HEAD~1 HEAD` | `git diff HEAD~1 HEAD` | 最近一次 commit |
+| `[3]` | `git diff --name-only main...HEAD` | `git diff main...HEAD` | 整條 branch（三點 diff） |
+| `[4]` | （使用者輸入） | 無 | 整檔案審查模式 |
+| `[5]` | `git ls-files \| grep -E '\.(java\|py\|jsx?\|tsx?\|html)$'` | 無 | 整檔案審查模式 |
+
+> **注意**：選項 `[4]`、`[5]` 沒有 diff，GitHub Models 引擎會改採「整檔案餵入」模式，token 消耗較大。
+
+#### 1.1.3 輸出審查範圍確認
+
+```
+【審查範圍確認】
+
+📌 範圍：選項 [N] - <範圍說明>
+📌 模式：<diff 審查 / 整檔案審查>
+
+即將審查以下檔案：
+├── src/main/java/xxx/XxxController.java
+├── src/main/java/xxx/XxxService.java
+└── src/main/resources/templates/xxx.html
+
+共 {n} 個檔案，是否開始審查？（請輸入 OKOKYES 確認）
+```
 
 ### 1.2 審查引擎選擇（強制執行）
 
@@ -109,27 +149,50 @@ test -n "${GH_TOKEN:-${GITHUB_TOKEN}}"
 
 #### 1.3.A Claude CLI 內建引擎
 
-依序讀取每個檔案，逐一檢查 [CHECKLIST.md](CHECKLIST.md) 中的項目，套用 §3 報告格式。
+依 §1.1.2 取得的檔案清單，依序讀取每個檔案，逐一檢查 [CHECKLIST.md](CHECKLIST.md) 中的項目，套用 §3 報告格式。
+
+> **依範圍調整審查重點**：
+> - 範圍 `[1]` / `[2]` / `[3]`：以 diff 為主軸，重點檢查異動行；異動行影響的鄰近邏輯也須一併確認
+> - 範圍 `[4]` / `[5]`：無 diff，整檔案逐項檢查 CHECKLIST
 
 #### 1.3.B GitHub Models 引擎
 
 > 詳細規範見 [COPILOT.md](COPILOT.md)
 
-**Step 1：收集審查素材**
+**Step 1：依 §1.1.1 範圍選項收集審查素材**
 
 ```bash
-# 取得本次異動檔案清單
-CHANGED=$(git diff --name-only HEAD)
+# 依使用者於 §1.1.1 選擇的範圍，取對應的 diff 與檔案清單
+case "$SCOPE" in
+    1)  # 工作區未 commit
+        DIFF_CMD="git diff HEAD"
+        FILES_CMD="git diff --name-only HEAD"
+        ;;
+    2)  # 最近一個 commit
+        DIFF_CMD="git diff HEAD~1 HEAD"
+        FILES_CMD="git diff --name-only HEAD~1 HEAD"
+        ;;
+    3)  # 整條 branch
+        DIFF_CMD="git diff main...HEAD"
+        FILES_CMD="git diff --name-only main...HEAD"
+        ;;
+    4|5)  # 指定檔案 / 全專案 → 整檔案模式（無 diff）
+        DIFF_CMD="echo '(整檔案審查模式，無 diff)'"
+        # FILES 由 §1.1.2 已蒐集
+        ;;
+esac
+
+CHANGED=$(eval "$FILES_CMD")
 CONTEXT=$(echo "$CHANGED" | tr '\n' ',' | sed 's/,$//')
 
-# 識別相關依賴檔案（被異動檔案 import 或繼承的檔案）
-# 由 SKILL 智慧分析後填入 RELATED 變數
+# 識別相關依賴檔案（被異動檔案 import / 繼承 / 引用的檔案）
+# 由 SKILL 智慧分析（grep import/extends/include）後填入 RELATED 變數
 ```
 
 **Step 2：呼叫審查腳本**
 
 ```bash
-git diff HEAD | python3 ~/Copilota/code_review.py \
+eval "$DIFF_CMD" | python3 ~/Copilota/code_review.py \
     --context "$CONTEXT" \
     --related "$RELATED" \
     > /tmp/code_review_result.json \
@@ -137,6 +200,8 @@ git diff HEAD | python3 ~/Copilota/code_review.py \
 
 REVIEW_EXIT=$?
 ```
+
+> **整檔案模式（選項 [4]/[5]）特別處理**：由於沒有 diff，`stdin` 改餵入「請審查這些檔案的完整內容」說明文字，所有檔案內容透過 `--context` 帶入。
 
 **Step 3：依退出碼處理**
 
