@@ -9,7 +9,6 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 > - 編碼規範：[_shared/CODING-STANDARDS.md](../_shared/CODING-STANDARDS.md)
 > - 資安規範：[_shared/SECURITY-CHECKLIST.md](../_shared/SECURITY-CHECKLIST.md)
 > - 完整檢查項目：[CHECKLIST.md](CHECKLIST.md)
-> - GitHub Models 引擎：[COPILOT.md](COPILOT.md)
 
 ## Usage Trigger
 
@@ -59,13 +58,13 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 
 依使用者選擇執行對應指令：
 
-| 選項 | 檔案清單命令 | Diff 命令 | 說明 |
-|------|-------------|-----------|------|
-| `[1]` | `git status --porcelain` + `git diff --name-only HEAD` | `git diff HEAD` | 工作區異動（含未 staged） |
-| `[2]` | `git diff --name-only HEAD~1 HEAD` | `git diff HEAD~1 HEAD` | 最近一次 commit |
-| `[3]` | `git diff --name-only main...HEAD` | `git diff main...HEAD` | 整條 branch（三點 diff） |
-| `[4]` | （使用者輸入） | 無 | 整檔案審查模式 |
-| `[5]` | `git ls-files \| grep -E '\.(java\|py\|jsx?\|tsx?\|html)$'` | 無 | 整檔案審查模式 |
+| 選項 | 檔案清單命令（bash） | Diff 命令（bash） | PowerShell 對應 | 說明 |
+|------|---------------------|-------------------|----------------|------|
+| `[1]` | `git status --porcelain` + `git diff --name-only HEAD` | `git diff HEAD` | 同左（git 命令跨平台） | 工作區異動 |
+| `[2]` | `git diff --name-only HEAD~1 HEAD` | `git diff HEAD~1 HEAD` | 同左 | 最近一次 commit |
+| `[3]` | `git diff --name-only main...HEAD` | `git diff main...HEAD` | 同左 | 整條 branch（三點 diff） |
+| `[4]` | （使用者輸入） | 無 | （使用者輸入） | 整檔案審查模式 |
+| `[5]` | `git ls-files \| grep -E '\.(java\|py\|jsx?\|tsx?\|html)$'` | 無 | `git ls-files \| Where-Object {$_ -match '\.(java\|py\|jsx?\|tsx?\|html)$'}` | 整檔案審查模式 |
 
 > **注意**：選項 `[4]`、`[5]` 沒有 diff，GitHub Models 引擎會改採「整檔案餵入」模式，token 消耗較大。
 
@@ -85,9 +84,52 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 共 {n} 個檔案，是否開始審查？（請輸入 OKOKYES 確認）
 ```
 
-### 1.2 審查引擎選擇（強制執行）
+---
 
-> ⚠️ **每次審查啟動時都必須詢問引擎選擇，不得自動套用上次選擇**。
+### 1.2 環境偵測與審查引擎選擇（強制執行）
+
+> ⚠️ **每次審查啟動時都必須執行 §1.2.0 環境偵測與 §1.2.1 引擎選擇**，不得自動套用上次選擇。
+
+#### 1.2.0 OS 與工具偵測（自動執行，無使用者互動）
+
+進入 §1.2 時先自動偵測作業系統，將結果寫入 `$TARGET_OS`，後續所有指令依此分流。
+
+**偵測規則**：
+
+| 偵測指令 | 輸出特徵 | $TARGET_OS | 工具鏈 |
+|---------|---------|-----------|--------|
+| `uname -s` | `Darwin` | `mac` | bash/zsh + curl + jq |
+| `uname -s` | `Linux` | `linux` | bash + curl + jq |
+| `uname -s` | `MINGW*` / `MSYS*` / `CYGWIN*` | `windows-bash` | Git Bash / WSL，bash + curl + jq |
+| `uname` 不存在（純 Windows） | `$env:OS = "Windows_NT"` | `windows-ps` | PowerShell + Invoke-RestMethod + ConvertFrom-Json |
+
+**bash / zsh / Git Bash 偵測指令**：
+
+```bash
+case "$(uname -s 2>/dev/null)" in
+    Darwin)               TARGET_OS=mac ;;
+    Linux)                TARGET_OS=linux ;;
+    MINGW*|MSYS*|CYGWIN*) TARGET_OS=windows-bash ;;
+    *)                    TARGET_OS=windows-ps ;;
+esac
+echo "TARGET_OS=$TARGET_OS"
+```
+
+**PowerShell 偵測指令**：
+
+```powershell
+if ($IsMacOS)                                    { $TARGET_OS = "mac" }
+elseif ($IsLinux)                                { $TARGET_OS = "linux" }
+elseif ($IsWindows -or $env:OS -eq "Windows_NT") { $TARGET_OS = "windows-ps" }
+Write-Host "TARGET_OS=$TARGET_OS"
+```
+
+**輸出範例**：
+
+```
+🖥️  作業系統偵測：mac (macOS)
+🛠️  將使用工具鏈：curl + jq
+```
 
 #### 1.2.1 引擎選單
 
@@ -98,40 +140,54 @@ description: "程式碼審查專家。於開發完成後自動審查程式碼品
 
   [1] Claude CLI 內建引擎（預設）
       - 由 Claude 逐檔讀取，依 CHECKLIST.md 規則比對
-      - 完全離線、不需 GitHub Token
+      - 完全離線、不需 GITHUB_TOKEN
       - 規則明確、結果穩定
 
   [2] GitHub Models 引擎
-      - 透過 ~/Copilota/code_review.py 呼叫 GitHub Models API
+      - 由 Claude 直接以 curl / Invoke-RestMethod 呼叫 GitHub Models API
+      - 端點：https://models.github.ai/inference/chat/completions
       - 預設模型：openai/gpt-4o（可由環境變數 COPILOT_REVIEW_MODEL 覆寫）
-      - 需設定 GITHUB_TOKEN / GH_TOKEN 環境變數
+      - 需設定 GITHUB_TOKEN 或 GH_TOKEN 環境變數
       - LLM 推理、可能發現規則外的潛在問題
+      - **無外部腳本依賴**（不需安裝任何 .py 或 .sh 檔）
 
 請輸入「1」、「2」或「OKOKYES」（OKOKYES = 預設使用引擎 1）。
 ```
 
-#### 1.2.2 GitHub Models 引擎前置檢查
+#### 1.2.2 GitHub Models 引擎前置檢查（依 OS 分流）
 
-若使用者選擇 `[2]`，**必須**依序檢查：
+若使用者選擇 `[2]`，依 §1.2.0 偵測到的 `$TARGET_OS` 執行對應檢查。
 
-```bash
-# 檢查項 1：腳本是否存在
-test -f ~/Copilota/code_review.py
+##### §1.2.2.A `mac` / `linux` / `windows-bash`
 
-# 檢查項 2：Python 3
-command -v python3
+| # | 檢查項 | 指令 | 失敗時的修復指引 |
+|---|--------|------|------------------|
+| 1 | curl 可用 | `command -v curl` | macOS：內建（理論不會缺）<br>Linux：`sudo apt install curl` 或 `sudo dnf install curl`<br>Git Bash：內建 |
+| 2 | jq 可用 | `command -v jq` | macOS：`brew install jq`<br>Linux：`sudo apt install jq`<br>Git Bash：到 https://stedolan.github.io/jq 下載 jq.exe 放入 PATH |
+| 3 | 環境變數 | `test -n "${GITHUB_TOKEN:-${GH_TOKEN}}"` | 臨時：`export GITHUB_TOKEN="ghp_xxxxx"`<br>永久：寫入 `~/.zshrc`（mac）或 `~/.bashrc`（Linux） |
 
-# 檢查項 3：環境變數（不得印出 token 內容）
-test -n "${GH_TOKEN:-${GITHUB_TOKEN}}"
-```
+##### §1.2.2.B `windows-ps`（PowerShell）
 
-**任一項失敗** → 顯示原因 → **自動 fallback 至引擎 [1]** 並提示使用者：
+| # | 檢查項 | 指令 | 失敗時的修復指引 |
+|---|--------|------|------------------|
+| 1 | Invoke-RestMethod 可用 | `Get-Command Invoke-RestMethod -ErrorAction SilentlyContinue` | PowerShell 5.1+ 內建（理論不會缺） |
+| 2 | ConvertFrom-Json 可用 | `Get-Command ConvertFrom-Json -ErrorAction SilentlyContinue` | PowerShell 內建（不需 jq） |
+| 3 | 環境變數 | `Test-Path Env:GITHUB_TOKEN` 或 `Test-Path Env:GH_TOKEN` | 臨時：`$env:GITHUB_TOKEN = "ghp_xxxxx"`<br>永久：`setx GITHUB_TOKEN "ghp_xxxxx"`（**需重開 PowerShell 才生效**） |
+
+##### 失敗時的處置
+
+**任一檢查失敗** → 顯示原因 + 修復指引 → **自動 fallback 至引擎 [1]**：
 
 ```
 ⚠️ GitHub Models 引擎不可用：<原因>
 👉 已自動 fallback 至 Claude CLI 內建引擎
-   修復方式：<對應修復指引，例如 export GITHUB_TOKEN=...>
+   修復方式（依您的 OS：<TARGET_OS>）：
+   <對應修復指令>
+
+修復完成後可重新執行 /CodeReview 改選引擎 [2]。
 ```
+
+> ⚠️ **安全紅線**：依 §6.2，token 內容絕不寫入任何檔案、絕不顯示完整字串、絕不要求使用者貼出。檢查時**只回報「環境變數是否存在」這個布林狀態**。
 
 #### 1.2.3 引擎參數記錄
 
@@ -139,8 +195,10 @@ test -n "${GH_TOKEN:-${GITHUB_TOKEN}}"
 
 ```
 📌 本次審查引擎：GitHub Models
+📌 OS：<mac / linux / windows-bash / windows-ps>
+📌 工具鏈：<curl + jq / Invoke-RestMethod + ConvertFrom-Json>
 📌 模型：openai/gpt-4o（或 COPILOT_REVIEW_MODEL 設定值）
-📌 上下文：受影響檔案 + 相關依賴檔案
+📌 端點：https://models.github.ai/inference/chat/completions
 ```
 
 ---
@@ -155,70 +213,184 @@ test -n "${GH_TOKEN:-${GITHUB_TOKEN}}"
 > - 範圍 `[1]` / `[2]` / `[3]`：以 diff 為主軸，重點檢查異動行；異動行影響的鄰近邏輯也須一併確認
 > - 範圍 `[4]` / `[5]`：無 diff，整檔案逐項檢查 CHECKLIST
 
-#### 1.3.B GitHub Models 引擎
+#### 1.3.B GitHub Models 引擎（依 OS 分流）
 
-> 詳細規範見 [COPILOT.md](COPILOT.md)
+##### 共通：System Prompt 範本
 
-**Step 1：依 §1.1.1 範圍選項收集審查素材**
+兩套 OS 樣板共用同一份 system prompt（含 CHECKLIST 規則摘要）：
+
+```
+你是專業 Java / Python / React / Thymeleaf 程式碼審查專家。
+依下列規範審查使用者提交的程式碼，輸出「純 JSON」（不要 markdown、不要 code fence、不要任何說明文字）。
+
+【🔴 錯誤（必須修正）— Java】
+- Lombok 註解：@Data / @Getter / @Setter / @Builder / @Slf4j
+- Lambda 表達式（->）
+- Stream API：.stream() / .map() / .filter() / .collect() / .forEach()
+- SQL 字串拼接（注入風險）
+- 硬編碼密碼、API Key、Secret
+- new Random() 用於安全場景（應改 SecureRandom）
+- log.error() 未傳入 Exception 物件
+
+【🔴 錯誤（必須修正）— React】
+- dangerouslySetInnerHTML
+- eval() / new Function()
+- innerHTML = userInput
+- .tsx / .ts 檔案
+- var 宣告
+- Class Component
+
+【🔴 錯誤（必須修正）— Python】
+- bare except、print 作為日誌、mutable default args、wildcard import
+- SQL Injection（f-string / % 拼接）、硬編碼密碼、logger.error 未傳 exc_info=True
+
+【🔴 錯誤（必須修正）— Thymeleaf】
+- th:utext、手動拼接 URL、POST 表單缺 th:action、AJAX POST 未帶 CSRF Header
+
+【🟡 警告（建議修正）】
+- Java：Null Check 不足、空 catch / printStackTrace、log.error 缺堆疊、缺 @Valid、缺繁中註解
+- React：未處理 loading / error / empty、缺繁中註解、表單驗證不足
+- Python：缺 type hints、缺 Docstring、Null 檢查不足
+- Thymeleaf：inline style / inline script、缺 label / alt、缺註解
+
+【🟢 建議】命名、重複碼、方法長度（>50 行）、改用函式元件等
+
+JSON 結構（嚴格遵守）：
+{"errors":[{"file":"檔名","line":行號,"type":"類型","message":"描述"}],
+ "warnings":[{"file":"檔名","line":行號,"type":"類型","message":"描述"}],
+ "advices":[{"file":"檔名","line":行號,"type":"類型","message":"描述"}]}
+
+file 欄位只填基底檔名，不含路徑。
+```
+
+---
+
+##### §1.3.B.A `mac` / `linux` / `windows-bash` 樣板（curl + jq）
 
 ```bash
-# 依使用者於 §1.1.1 選擇的範圍，取對應的 diff 與檔案清單
+# Step 1：依範圍蒐集檔案
 case "$SCOPE" in
-    1)  # 工作區未 commit
-        DIFF_CMD="git diff HEAD"
-        FILES_CMD="git diff --name-only HEAD"
-        ;;
-    2)  # 最近一個 commit
-        DIFF_CMD="git diff HEAD~1 HEAD"
-        FILES_CMD="git diff --name-only HEAD~1 HEAD"
-        ;;
-    3)  # 整條 branch
-        DIFF_CMD="git diff main...HEAD"
-        FILES_CMD="git diff --name-only main...HEAD"
-        ;;
-    4|5)  # 指定檔案 / 全專案 → 整檔案模式（無 diff）
-        DIFF_CMD="echo '(整檔案審查模式，無 diff)'"
-        # FILES 由 §1.1.2 已蒐集
-        ;;
+    1) FILES=$(git diff --name-only HEAD) ;;
+    2) FILES=$(git diff --name-only HEAD~1 HEAD) ;;
+    3) FILES=$(git diff --name-only main...HEAD) ;;
+    4) FILES="<使用者輸入的檔案，逗號 split>" ;;
+    5) FILES=$(git ls-files | grep -E '\.(java|py|jsx?|tsx?|html)$') ;;
 esac
 
-CHANGED=$(eval "$FILES_CMD")
-CONTEXT=$(echo "$CHANGED" | tr '\n' ',' | sed 's/,$//')
+# Step 2：組 user prompt（檔案內容串接）
+USER_PROMPT="請審查以下檔案："
+for f in $FILES; do
+    USER_PROMPT="$USER_PROMPT
 
-# 識別相關依賴檔案（被異動檔案 import / 繼承 / 引用的檔案）
-# 由 SKILL 智慧分析（grep import/extends/include）後填入 RELATED 變數
+=== File: $(basename $f) ===
+$(cat "$f")"
+done
+
+MODEL="${COPILOT_REVIEW_MODEL:-openai/gpt-4o}"
+
+# Step 3：呼叫 GitHub Models API
+jq -n \
+    --arg sys "$SYSTEM_PROMPT" \
+    --arg usr "$USER_PROMPT" \
+    --arg model "$MODEL" \
+    '{model:$model, temperature:0, messages:[
+        {role:"system", content:$sys},
+        {role:"user",   content:$usr}
+     ]}' \
+  | curl -sS -X POST https://models.github.ai/inference/chat/completions \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d @- \
+        -w "\n__HTTP_STATUS__:%{http_code}" \
+  > /tmp/cr_response.txt
+
+# Step 4：分離 HTTP 狀態與 body
+HTTP_STATUS=$(grep '^__HTTP_STATUS__' /tmp/cr_response.txt | cut -d: -f2)
+sed -i.bak '/^__HTTP_STATUS__/d' /tmp/cr_response.txt
+mv /tmp/cr_response.txt /tmp/cr_response.json
+
+# Step 5：依狀態處理（見下方表格）
 ```
 
-**Step 2：呼叫審查腳本**
+---
 
-```bash
-eval "$DIFF_CMD" | python3 ~/Copilota/code_review.py \
-    --context "$CONTEXT" \
-    --related "$RELATED" \
-    > /tmp/code_review_result.json \
-    2> /tmp/code_review_stderr.log
+##### §1.3.B.B `windows-ps` 樣板（PowerShell）
 
-REVIEW_EXIT=$?
+```powershell
+# Step 1：依範圍蒐集檔案
+$Files = switch ($Scope) {
+    1 { git diff --name-only HEAD }
+    2 { git diff --name-only HEAD~1 HEAD }
+    3 { git diff --name-only main...HEAD }
+    4 { @(<使用者輸入的檔案 split>) }
+    5 { git ls-files | Where-Object { $_ -match '\.(java|py|jsx?|tsx?|html)$' } }
+}
+
+# Step 2：組 user prompt
+$UserPrompt = "請審查以下檔案：`n`n"
+foreach ($f in $Files) {
+    $name = Split-Path $f -Leaf
+    $content = Get-Content $f -Raw
+    $UserPrompt += "=== File: $name ===`n$content`n`n"
+}
+
+$Model = if ($env:COPILOT_REVIEW_MODEL) { $env:COPILOT_REVIEW_MODEL } else { "openai/gpt-4o" }
+
+# Step 3：組 JSON payload
+$BodyObj = @{
+    model       = $Model
+    temperature = 0
+    messages    = @(
+        @{ role = "system"; content = $SystemPrompt },
+        @{ role = "user";   content = $UserPrompt }
+    )
+}
+$Body = $BodyObj | ConvertTo-Json -Depth 10 -Compress
+
+# Step 4：呼叫 GitHub Models API
+$Token = if ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $env:GH_TOKEN }
+
+try {
+    $Resp = Invoke-RestMethod `
+        -Uri "https://models.github.ai/inference/chat/completions" `
+        -Method Post `
+        -Headers @{ Authorization = "Bearer $Token" } `
+        -ContentType "application/json" `
+        -Body $Body `
+        -ErrorAction Stop
+
+    $ReviewJson = $Resp.choices[0].message.content
+    $ReviewJson | Out-File "$env:TEMP\cr_review.json" -Encoding UTF8
+    $Review = $ReviewJson | ConvertFrom-Json
+} catch {
+    $StatusCode = $_.Exception.Response.StatusCode.value__
+    Write-Host "❌ API 錯誤 (HTTP $StatusCode)：$($_.Exception.Message)"
+    # 依下方錯誤表處理 fallback
+}
+
+# Step 5：清理 token 變數（避免殘留）
+Remove-Variable Token -ErrorAction SilentlyContinue
 ```
 
-> **整檔案模式（選項 [4]/[5]）特別處理**：由於沒有 diff，`stdin` 改餵入「請審查這些檔案的完整內容」說明文字，所有檔案內容透過 `--context` 帶入。
+---
 
-**Step 3：依退出碼處理**
+##### §1.3.B 共通：HTTP 狀態與錯誤處理
 
-| Exit Code | 動作 |
-|-----------|------|
-| `0` | 解析 JSON 結果，套用 §3 報告格式呈現 |
-| `1` (`missing_token`) | 提示使用者設定 `GITHUB_TOKEN` → fallback 至引擎 [1] |
-| `1` (`empty_diff`) | 提示無異動，跳過審查 |
-| `2` (`invalid_response`) | 顯示 raw_response → 詢問是否 fallback 至引擎 [1] |
-| `3` (`http_error`) | 顯示錯誤碼 → 詢問是否 fallback 至引擎 [1] |
-| `4` (`exception`) | 顯示例外資訊 → 詢問是否 fallback 至引擎 [1] |
+| HTTP 狀態 | 動作 |
+|----------|------|
+| `200` + 有 `choices[].message.content` | 解析 JSON 結果，套 §3 報告格式 |
+| `200` + JSON 含 `error` 欄位 | 顯示 `error.message` → 自動 fallback 至引擎 [1] |
+| `401` Unauthorized | 提示 token 無效或過期，引導重設環境變數 → fallback |
+| `403` Forbidden | 提示 PAT 缺少 `models:read` 權限（fine-grained PAT 需勾選 Models 權限） → fallback |
+| `429` Too Many Requests | 提示速率限制，建議稍後再試 → fallback |
+| `5xx` | 提示 GitHub 服務暫時不可用 → fallback |
+| 連線失敗 / Timeout | 提示網路問題 → fallback |
 
-**Step 4：報告呈現**
+##### Step 6：報告呈現（共通）
 
 - 套用 §3 三級分類報告格式
-- **必須**附註引擎來源：`📌 審查引擎：GitHub Models（model=<模型名稱>）`
-- **必須**保留原始 JSON 摘要供使用者查閱
+- **必須**附註引擎來源：`📌 審查引擎：GitHub Models（OS=<mac/linux/windows-ps>，model=<模型名稱>）`
+- **必須**保留原始 JSON 檔（`/tmp/cr_review.json` 或 `$env:TEMP\cr_review.json`）供使用者查閱
 
 ---
 
@@ -326,6 +498,10 @@ REVIEW_EXIT=$?
 【CodeReview 審查報告】
 
 ════════════════════════════════════════════════════════════════
+
+📌 審查引擎：<Claude CLI 內建 / GitHub Models>
+📌 OS：<mac / linux / windows-bash / windows-ps>
+📌 模型：<僅 GitHub Models 引擎需顯示>
 
 📊 審查摘要
 ├── 審查檔案數：{n}
@@ -469,10 +645,12 @@ REVIEW_EXIT=$?
 - ❌ 禁止未告知就自動啟動下一個 Skill
 - ❌ 禁止跳過「已找到 Skill」的通知
 - ❌ 禁止接受 `OKOKYES` 以外的確認詞彙啟動 Skill
-- ❌ 禁止跳過「引擎選擇」步驟自動套用某一引擎
+- ❌ 禁止跳過「OS 偵測」與「引擎選擇」步驟自動套用某一引擎
 - ❌ 禁止記憶上次的引擎選擇（每次都必須詢問）
 
 ### 6.2 安全紅線（GitHub Models 引擎）
+
+#### 通用（所有 OS）
 
 - ❌ **絕對禁止**將 `GITHUB_TOKEN` / `GH_TOKEN` 寫入任何檔案（SKILL、settings.json、commit log、註解）
 - ❌ **絕對禁止**在訊息或日誌中印出 token 完整字串（即使部分截斷亦不可）
@@ -481,12 +659,27 @@ REVIEW_EXIT=$?
 - ✅ **必須**僅從環境變數讀取 token
 - ✅ **必須**在 token 不存在時，引導使用者自行設定（提供命令範例，但不接收使用者貼出的 token）
 
+#### macOS / Linux / Windows-bash 特定
+
+- ❌ 禁止 `echo $GITHUB_TOKEN`、`set | grep TOKEN`、`env | grep TOKEN`
+- ❌ 禁止用 `set -x` 開啟 shell trace（會印出 token）
+- ❌ 禁止用 `curl -v`（verbose 會洩漏 Authorization header）
+- ✅ 建議將 token 設定指令前加空格（zsh `HISTCONTROL=ignorespace`），避免進入 history
+
+#### Windows PowerShell 特定
+
+- ❌ 禁止 `Write-Host $env:GITHUB_TOKEN`、`echo $env:GITHUB_TOKEN`
+- ❌ 禁止把 token 留在 `Get-History` 中（建議呼叫後執行 `Clear-History`）
+- ❌ 禁止寫入 `$PROFILE`（除非使用 SecureString 加密；一般使用者請改用 `setx`）
+- ✅ 函式結束前主動 `Remove-Variable Token` 清除區域變數
+
 ---
 
 ## 7. 相關文件
 
 - [CHECKLIST.md](CHECKLIST.md) — 完整審查檢查清單與正則表達式（Claude 引擎使用）
-- [COPILOT.md](COPILOT.md) — GitHub Models 引擎使用規範
 - [_shared/CODING-STANDARDS.md](../_shared/CODING-STANDARDS.md) — 共享編碼規範
 - [_shared/SECURITY-CHECKLIST.md](../_shared/SECURITY-CHECKLIST.md) — 共享資安規範
-- `~/Copilota/code_review.py` — GitHub Models 審查腳本
+- GitHub Models 官方文件：https://docs.github.com/en/github-models
+- API 端點：`https://models.github.ai/inference/chat/completions`
+- API 規格：OpenAI 相容 Chat Completions 介面
