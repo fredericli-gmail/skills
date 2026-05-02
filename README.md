@@ -125,7 +125,8 @@ skills/
 | **測試** | Playwright E2E 自動化測試 | Commit 完成 | 流程結束 |
 | **Commit** | 規範化 Git 提交 | 原始碼掃描通過 | 測試 |
 | **待辦事項** | 跨對話任務追蹤 | `/待辦事項` 或對話中提及 | - |
-| **簡報** | 簡報撰寫 + 三大品質規則（截圖、不溢出、不重疊）+ `/check-deck` 全簡報健檢 | `/簡報`、「幫我做簡報」、「簡報檢查」 | - |
+| **Bug管理** ⚠️ | Azure DevOps Bug 單管理（拉取、回寫、同步） | `/Bug管理`、`/bug`<br>**需 Azure DevOps，其他 Issue Tracker 無法使用** | - |
+| **簡報** | 簡報撰寫 + 三大品質規則（截圖、不溢出、不重疊）+ `/check-deck` 全簡報健檢<br>⚠️ 預設使用 Microsoft JhengHei 字型，非 Windows 環境請改用系統可用的繁體中文字型（macOS：Heiti TC、PingFang TC；Linux：Noto Sans CJK TC） | `/簡報`、「幫我做簡報」、「簡報檢查」 | - |
 
 ---
 
@@ -194,22 +195,6 @@ skills/
 - ❌ 禁止真實資料破壞（DROP、TRUNCATE、rm -rf）
 - ❌ 禁止後門植入、社交工程、C2 框架
 - ✅ 所有危險操作需二次 `OKOKYES` 確認
-
----
-
-## 與舊版 SKILL 的差異
-
-本目錄取代舊版 `skill/` 與 `skills 4/`。主要改進：
-
-| 改進項目 | 舊版問題 | 新版做法 |
-|---------|---------|---------|
-| **確認詞統一** | 舊 `skill/` 用 `OKOKYES`、`skills 4/` 用 `okgo`、重構用 `Jonatan` | 全部統一為 `OKOKYES` |
-| **密碼移除** | 多處硬編碼明文密碼 | 完全移除，強制 SSH key |
-| **開發 SKILL 拆分** | 一個「開發」SKILL 混雜 Java + Thymeleaf + React + Liquibase | 拆成 4 個獨立 SKILL |
-| **規範重複** | Controller/Service 架構規範被複製到 4 個 SKILL | 抽到 `_shared/CODING-STANDARDS.md`，所有 SKILL 引用 |
-| **測試方向** | `skill/` 用 Playwright，`skills 4/` 用 Selenium | 統一使用 Playwright |
-| **重構奇怪規範** | 舊版要求「禁止 `let`/`const`，使用 `var`」 | 移除此違反現代 JS 標準的規範 |
-| **資安檢測** | 僅靠 CodeReview 人工檢查 | 新增三層縱深（SAST + DAST + Pentest），依 OWASP Top 10 2025 |
 
 ---
 
