@@ -5,6 +5,13 @@ description: "待辦事項管理工具。追蹤所有開發任務的進度與狀
 
 # Skill: 待辦事項管理
 
+> ⚠️ **命名衝突警示**：本 Skill 使用 `memory/` 資料夾名，與 Claude system prompt 的
+> 「全域 memory 系統」（位於 `~/.claude/projects/<專案 hash>/memory/`）撞名但**完全獨立**：
+> - 全域 memory 用於 user / feedback / project / reference 類型，由 Claude 跨對話自動管理
+> - 本 Skill 用於專案級待辦清單，由使用者顯式請求建立
+>
+> 兩者**獨立、不互通**。詳見 §1.5 第二條。
+
 ## Usage Trigger
 
 - 當用戶輸入 `/待辦事項`、`/待辦`、`/todo` 時觸發
@@ -24,7 +31,11 @@ description: "待辦事項管理工具。追蹤所有開發任務的進度與狀
 ### 1.1 路徑規則
 
 - **相對路徑**：永遠使用專案根目錄相對路徑 `memory/todo_backlog.md`，不使用絕對路徑
-- **專案根目錄判定**：以當前 Claude Code 對話的 cwd 為準（通常是 git repo root）
+- **專案根目錄判定**：以當前 Claude Code 對話的 cwd 為準。
+  > ⚠️ **無條件以 cwd 為準**：不論 cwd 是否為 git repo、是否被 git 追蹤、
+  > 是否能跨機同步、是否含其他「看似更適合的 git repo 子目錄」，
+  > 都**直接使用 cwd**，不要為了任何理由改放別處。
+  > **同步問題由使用者自行處理，不在本 Skill 職責內**。
 - **禁止使用 `~/.claude/` 下的全域路徑**：全域路徑無法跨電腦同步，已廢棄
 
 ### 1.2 自動建立目錄
@@ -35,14 +46,19 @@ description: "待辦事項管理工具。追蹤所有開發任務的進度與狀
 mkdir -p memory
 ```
 
-### 1.3 Git 版控建議
+### 1.3 Git 版控（延伸建議，非規則）
 
-`memory/todo_backlog.md` 應加入 git 追蹤，這樣：
+> ⚠️ 本節為**選用建議**，不影響 §1.1 的 cwd 規則。
+> 即使無法滿足本節建議（如 cwd 不是 git repo），仍應依 §1.1 放 `cwd/memory/`，
+> **禁止為了「找一個能 git 追蹤的位置」而改放其他目錄**（詳見 §1.5）。
+
+`memory/todo_backlog.md` **可以**加入 git 追蹤以獲得：
 - ✅ 跨電腦同步待辦狀態（git clone / pull 後自動取得最新待辦）
 - ✅ 多人協作時可透過 PR 審閱待辦變更
 - ✅ 歷史追蹤（可看到待辦的新增/完成時間點）
 
-**不建議**在 `.gitignore` 中排除 `memory/`，除非此目錄含有敏感資訊。
+**建議**：若 cwd 是 git repo，不要在 `.gitignore` 中排除 `memory/`，除非此目錄含有敏感資訊。
+若 cwd 不是 git repo，使用者可自行決定如何同步（symlink、外部備份、或接受不同步）。
 
 ### 1.4 遷移舊版待辦
 
@@ -63,6 +79,44 @@ mkdir -p memory
 1. 讀取舊版檔案內容
 2. 寫入新路徑 `<專案>/memory/todo_backlog.md`
 3. 刪除舊版檔案（或保留作為備份，由使用者決定）
+
+### 1.5 禁止行為（防止 LLM 自作主張覆蓋規則）
+
+> ⚠️ 本節列出 LLM 容易犯的錯誤決策模式，**任一項都會違反 §1.1 的 cwd 規則**。
+
+❌ **禁止為了「git 追蹤便利」覆蓋 §1.1 cwd 規則**
+
+  典型情境：cwd 是 monorepo 工作目錄（如 `SDMETL/` 含兩個 sub-repo），
+  cwd 自身不是 git repo 但 sub-folder 是 git repo。
+
+  錯誤行為：擅自改放 sub-folder（如 `SDMETL/sub-repo/memory/`）。
+  正確行為：直接放 cwd（`SDMETL/memory/`），跨機同步問題由使用者決定。
+
+  ✅ 「使用者沒問同步，我也不主動處理」是正確心態。
+
+❌ **禁止把 Skill 待辦與全域 memory 混為一談**
+
+  「memory」這個資料夾名被兩個獨立系統使用，**不要混用**：
+
+  | 系統 | 路徑 | 用途 | 規範來源 |
+  |---|---|---|---|
+  | Claude 全域 memory | `~/.claude/projects/<專案 hash>/memory/` | user / feedback / project / reference 類型，跨對話保留 | system prompt |
+  | Skill 待辦事項 | `<cwd>/memory/todo_backlog.md` | 專案級待辦清單 | 本 Skill §1.1 |
+
+  禁止把待辦寫到全域 memory，也禁止把 feedback memory 寫到專案 memory/。
+
+❌ **禁止「自作主張處理邊界情境」**
+
+  cwd 看起來不適合放 todo（如非 git、唯讀、權限不足）時：
+  - ✅ **正確**：先告知使用者並請他確認，例：「cwd 不是 git repo，待辦不會跨機同步，要繼續嗎？」
+  - ❌ **錯誤**：擅自挑替代位置（找 git repo 子目錄、改用全域路徑、跳到家目錄等）
+
+❌ **禁止過度詮釋規範中的「通常」「應」「建議」等詞**
+
+  - 「通常 X」≠ 「不通常時可以自由發揮」
+  - 「應 Y」≠「不滿足時可以推翻其他規則」
+  - 「建議 Z」≠「規則」
+  - 看到這些詞時，**先嚴格遵守 §1.1**，再考慮其他建議。
 
 ---
 
