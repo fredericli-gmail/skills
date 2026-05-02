@@ -1,0 +1,62 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# 編輯器與 IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# 環境變數與機敏設定
+.env
+.env.*
+!env.example
+*.key
+*.pem
+*.pfx
+*.p12
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+credentials*
+secrets*
+*.token
+
+# 日誌與暫存
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+
+# 套件與相依
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+target/
+
+# SourceTree 等工具寫入 .git 內的檔案，git push 本不會帶走，
+# 但仍建議避免在 repo 任何位置建立同名檔案
+sourcetreeconfig
